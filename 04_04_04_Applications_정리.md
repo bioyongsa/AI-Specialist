@@ -638,6 +638,7 @@ DETR 확장 → 탐지와 추적을 하나의 Transformer로 처리.
 ---
 
 ## 6. Segmentation 개요
+결국 pixel 단위로 classification을 함!!!
 
 ### 6-1. 세그멘테이션이 필요한 이유
 
@@ -649,8 +650,8 @@ DETR 확장 → 탐지와 추적을 하나의 Transformer로 처리.
 ### 6-2. 세그멘테이션 종류
 
 ```
-Semantic Segmentation : 픽셀마다 클래스 부여 (Things + Stuff)
-Instance Segmentation : 각 인스턴스 개별 마스크 (Things only)
+Semantic Segmentation : 픽셀마다 클래스 부여 (Things(오브젝트) + Stuff(배경))
+Instance Segmentation : 각 인스턴스 개별 마스크 (Things only), Stuff는 모두 날려버림
 Panoptic Segmentation : Semantic + Instance 통합 (Things + Stuff)
 ```
 
@@ -676,7 +677,7 @@ def compute_miou(preds, targets, num_classes):
     return sum(iou_list) / len(iou_list)
 ```
 
-### 6-4. FCN (2015) — 최초 딥러닝 Segmentation
+### 6-4. FCN: Fully-Convolutional Networks (2015) — 최초 딥러닝 Segmentation
 
 ```
 핵심 변경: FC layer → 1×1 Conv
