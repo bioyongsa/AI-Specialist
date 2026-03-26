@@ -173,11 +173,11 @@ Detection 난이도를 높이는 주요 요인:
 
 ```
 [One-stage Detector]
-Image → Backbone → Regression Box + Classification → 결과
-       (빠름, 속도 우선 — YOLO, SSD, RetinaNet, CenterNet)
+Image → Backbone → **Regression Box + Classification** → 결과
+       (빠름, 속도 우선 — CenterNet)
 
 [Two-stage Detector]
-Image → Backbone → Object Proposal → Classification + Regression → 결과
+Image → Backbone → Object Proposal → **Classification + Regression** → 결과
        (정확함, 정밀도 우선 — R-CNN, Fast R-CNN, Faster R-CNN)
 ```
 
@@ -194,10 +194,10 @@ def compute_iou(box1, box2):
     """
     box: [x1, y1, x2, y2]
     """
-    inter_x1 = max(box1[0], box2[0])
-    inter_y1 = max(box1[1], box2[1])
-    inter_x2 = min(box1[2], box2[2])
-    inter_y2 = min(box1[3], box2[3])
+    inter_x1 = max(box1[0], box2[0]) # 교차영역의 왼쪽 경계: 두 박스의 왼쪽 경계 중 더 오른쪽인 것: 왼쪽 경계는 각 박스의 [0]임
+    inter_y1 = max(box1[1], box2[1]) # x에 대한 경우와 동일
+    inter_x2 = min(box1[2], box2[2]) # 교차영역의 오른쪽 경계: 두 박스의 오른쪽 경계 중 더 왼쪽인 것. 오른쪽 경계는 각 박스의 [2]임
+    inter_y2 = min(box1[3], box2[3]) # x에 대한 경우와 동일
 
     inter_area = max(0, inter_x2 - inter_x1) * max(0, inter_y2 - inter_y1)
     area1 = (box1[2]-box1[0]) * (box1[3]-box1[1])
