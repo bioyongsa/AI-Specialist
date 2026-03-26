@@ -1447,15 +1447,16 @@ Stage 4: H/32 × W/32 × 8C
 
 ---
 
-### 6.3 CLIP
+### 6.3 CLIP (Constrative Language-Image Pre-training)
 
 > 논문: _Learning Transferable Visual Models From Natural Language Supervision_, ICML 2021
 
 #### 핵심 아이디어
 
-- 인터넷의 **4억 쌍 (이미지, 텍스트) 데이터**로 학습
+- 인터넷의 **4억 쌍 (이미지, 텍스트) 데이터**로 학습 (e.g. Instagram에 올린 이미지와 hashing text에 대한 data 조합 사용)
 - 이미지 인코더 + 텍스트 인코더를 **동일한 임베딩 공간**에서 정렬
-- **Zero-shot 분류** 가능 → 새로운 클래스에 재학습 불필요
+- **Zero-shot 분류** 가능 → 새로운 클래스에 재학습 불필요 (zero-shot capability: 처음 보는 data를 가지고 처리하는 능력)
+- No manual labeling required!!
 
 #### 슬라이드 그림 해설 — Architecture (이미지-텍스트 인코더 구조)
 
@@ -1476,7 +1477,7 @@ Stage 4: H/32 × W/32 × 8C
          ↓ Linear Projection (W_i)
   I_e = l2_normalize(I_f @ W_i)      → R^(N, d)  ← 공통 임베딩 공간
 
-슬라이드 가운데: 유사도 행렬 (N×N)
+슬라이드 가운데: 유사도 행렬 (N×N) (Similarity: Inner Product로 계산)
   ┌──────────────────────────────────────┐
   │           T₁   T₂   T₃  ···  T_N   │
   │  I₁  │ I₁·T₁ I₁·T₂ I₁·T₃ ··· │   │
@@ -1788,7 +1789,7 @@ Loss: Σ_{x∈student crops} Σ_{t∈teacher outputs} H(t, s)
 ```
 슬라이드 수식 설명:
 
-① EMA (Exponential Moving Average):
+① EMA (Exponential Moving Average): 최근의 것을 가장 크게 weighting, 오래된 것을 적게 weighting
    θ_teacher ← m · θ_teacher + (1-m) · θ_student
    m ≈ 0.996  (1에 가까울수록 teacher가 느리게 변함)
 
@@ -1837,13 +1838,13 @@ class DINO_CenteringAndEMA:
 #### 슬라이드 그림 해설 — Architecture (4/6): Temperature Softmax 차이
 
 ```
-Student Temperature (τ_s = 0.1, 높음) → 분포가 평탄(Smooth):
+Student Temperature (τ_s = 0.1, temperature 높음) → 분포가 평탄(Smooth):
 
   logits = [2.0, 0.5, 1.0, 0.3]
   softmax(logits / 0.1) ≈ [0.93, 0.00, 0.07, 0.00]  → 높은 entropy 유지
   → Collapse 방지, 다양한 클래스를 탐색
 
-Teacher Temperature (τ_t = 0.04, 낮음) → 분포가 집중(Sharp):
+Teacher Temperature (τ_t = 0.04, temperature 낮음) → 분포가 집중(Sharp):
 
   softmax(logits / 0.04) ≈ [1.00, 0.00, 0.00, 0.00]  → 거의 one-hot
   → 고신뢰 pseudo-label 역할
@@ -1902,6 +1903,7 @@ Temperature Softmax 적용:
 Cross-Entropy Loss:
   L = -Σₖ p₂[k] · log(p₁[k])          → scalar
     = H(p₂, p₁)  (Cross-Entropy)
+=> Loss는 student에만 반영하고, teacher에는 반영하지 않음. student는 이 결과를 ema (exponential moving avg)를 통해서만 teacher에게 전달함
 
 "Classes in self-supervised learning" = Teacher가 발견한 의미적 클러스터
   → 레이블 없이 등장, 학습 과정에서 자연스럽게 형성됨
