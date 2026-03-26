@@ -5,6 +5,139 @@
 
 ---
 
+## 전체 구조 한눈에 보기
+
+PDF 전체는 **3개 주제**로 구성되며, 각 주제는 공통적으로 **개념 → Metric → 모델 진화(고전 → CNN → Transformer)** 순서로 전개됩니다.
+
+| 주제 | 핵심 질문 | 슬라이드 |
+|------|-----------|---------|
+| Object Detection | 이미지에서 "무엇이 어디에" | 1–26 |
+| Object Tracking | 시간축으로 "동일 객체 유지" | 36–61 |
+| Segmentation | 픽셀 단위로 "어디까지가 그 객체" | 62–100 |
+
+> 모델 간 연결 고리: Detection의 **DETR** → Tracking의 **TrackFormer**, Detection의 **Faster R-CNN** → Segmentation의 **Mask R-CNN**
+
+### 1. Object Detection (슬라이드 1–26)
+
+```
+1-1. 개념 및 배경
+     ├── What? → Classification (클래스 + confidence score)
+     ├── Where? → Localization (bounding box + IoU)
+     ├── 실세계 응용: 자율주행, 의료, 감시, 농업 등
+     └── 어려운 이유: scale 변화, occlusion, pose 변화, 조명
+
+1-2. Detection Metric
+     ├── IoU (Intersection over Union)
+     ├── Confusion matrix: TP / FP / FN (TN은 무의미)
+     ├── Precision / Recall / F1
+     ├── AP: PR curve 면적 (단일 클래스)
+     ├── mAP: 전체 클래스 AP 평균
+     └── COCO metric: AP@[.50:.05:.95], Small/Medium/Large
+
+1-3. 1-stage vs 2-stage
+     ├── 2-stage: Region Proposal → 분류/회귀 (정확도 우선)
+     └── 1-stage: 이미지 전체 단일 pass (속도 우선)
+
+1-4. 주요 모델 (연대순)
+     ├── [Classical]
+     │    └── Viola-Jones (2001): Haar feature + AdaBoost + cascade
+     ├── [Two-stage]
+     │    ├── R-CNN (2014): Selective search + AlexNet + SVM
+     │    ├── NMS: 중복 박스 제거 알고리즘
+     │    ├── Fast R-CNN (2015): 공유 feature map + RoI Pooling
+     │    └── Faster R-CNN (2015): RPN으로 end-to-end 학습
+     ├── [One-stage / Anchor-free]
+     │    └── CenterNet (2019): center point 표현, heatmap + offset + size
+     └── [Transformer-based]
+          └── DETR (2020): Set prediction + Hungarian matching
+               ├── 구성: CNN backbone → Encoder → Decoder (object query 100개)
+               ├── 출력: pred_logits (B,100,92) + pred_boxes (B,100,4)
+               ├── GIoU loss: IoU=0 상황도 gradient 생성
+               └── NMS 완전 제거, anchor 설계 불필요
+```
+
+### 2. Object Tracking (슬라이드 36–61)
+
+```
+2-1. 개념 및 어려움
+     ├── Occlusion, 재출현, 유사 객체, 빠른 움직임
+     ├── Scale 변화, 카메라 움직임, 조명·외형 변화
+     └── 실시간 요구사항: 30~60 FPS
+
+2-2. Tracking Metric
+     ├── MOTA: 1 − (FN+FP+IDsw)/GT — 종합 오류율
+     ├── IDF1: identity 일관성 (IDTP 기반 F1)
+     └── HOTA: √(DetA × AssA) — 탐지+연관 균형
+
+2-3. 방법론
+     ├── Tracking-by-Detection: 탐지 후 IoU/ReID로 연관 (2-stage)
+     └── Tracking-by-Regression: 이전 박스에서 직접 회귀 (1-stage)
+
+2-4. 주요 모델 (연대순)
+     ├── [Classical trackers]
+     │    ├── Lucas-Kanade (1998): optical flow — 픽셀 밝기 보존 가정
+     │    └── Particle filter (2006): 비선형·비가우시안 상태 추정
+     ├── [Discriminative trackers]
+     │    └── TLD (2010): Tracking + Learning + Detection 통합
+     │         └── Median Flow + 온라인 학습 + sliding window 재탐지
+     ├── [Tracking-by-Detection]
+     │    └── ByteTrack (2022): low-confidence 탐지도 활용 (2단계 매칭)
+     │         ├── 1차: high-score ↔ track (IoU 기반)
+     │         ├── 2차: low-score ↔ 남은 track (occlusion 구출)
+     │         └── Kalman filter 위치 예측, MOT17 80.3 MOTA @ 30FPS
+     └── [Transformer-based]
+          └── TrackFormer (2021): DETR 확장 — 탐지+추적 통합
+               ├── Detection queries: 새 객체 발견
+               ├── Track queries: 이전 프레임 임베딩 → 슬롯 번호로 identity 유지
+               └── Hungarian matching 학습, NMS/ReID 불필요
+```
+
+### 3. Segmentation (슬라이드 62–100)
+
+```
+3-1. 개념 및 종류
+     ├── Semantic: 픽셀마다 클래스 부여 (Things + Stuff)
+     ├── Instance: 인스턴스별 개별 마스크 (Things only)
+     ├── Panoptic: Semantic + Instance 통합
+     └── 필요 이유: 정밀도, 인스턴스 분리, 장면 이해, 픽셀 단위 결정
+
+3-2. Segmentation Metric
+     ├── IoU per class: |P∩G| / |P∪G|
+     ├── mIoU: 전체 클래스 IoU 평균 (주요 벤치마크 지표)
+     └── FWIoU: 클래스 빈도 가중 IoU
+
+3-3. Classical segmentation
+     ├── Thresholding / Otsu
+     ├── K-means clustering
+     ├── GrabCut (graph-based)
+     └── Canny edge + Watershed
+
+3-4. 주요 모델 (연대순)
+     ├── FCN (2015): 최초 E2E DL segmentation
+     │    ├── FC layer → 1×1 Conv (공간 정보 유지)
+     │    └── Skip fusion: FCN-32s / 16s / 8s (해상도 복원)
+     ├── U-Net (2015): 의료 영상 특화
+     │    ├── Encoder: MaxPool → 채널↑, 해상도↓
+     │    ├── Decoder: UpConv → 채널↓, 해상도↑
+     │    ├── Skip connection: encoder feature를 decoder에 concat
+     │    └── Overlap-tile + elastic transform + 경계 가중 loss
+     ├── Mask R-CNN (2017): instance segmentation
+     │    ├── Faster R-CNN + FCN on RoI
+     │    ├── RoI Align: bilinear interpolation (양자화 오류 제거)
+     │    └── Mask head: 클래스별 binary mask (sigmoid + BCE)
+     ├── SegFormer (2021): efficient Transformer segmentation
+     │    ├── Hierarchical encoder: Efficient Self-Attention (O(N²/R))
+     │    ├── Mix-FFN: depth-wise conv → positional encoding 대체
+     │    └── All-MLP Decoder: 경량 + 빠른 추론
+     └── SAM (2023): Vision Foundation Model
+          ├── Promptable: point / box / text / mask 입력
+          ├── Image encoder (ViT+MAE) + Prompt encoder + Mask decoder
+          ├── SA-1B: 11M 이미지, 1.1B 마스크
+          └── → SAM 2 (비디오 지원) → SAM 3 (개념 프롬프트)
+```
+
+---
+
 ## 목차
 
 1. [Object Detection 개요](#1-object-detection-개요)
