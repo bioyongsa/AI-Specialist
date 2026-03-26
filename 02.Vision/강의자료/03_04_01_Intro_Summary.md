@@ -114,14 +114,14 @@ result = C @ a                             # (4,3) @ (3,) = (4,)
 print((C @ a.reshape(-1,1)).T)            # (Ca)^T = a^T C^T
 
 # 내적 (Inner Product)
-dot = np.dot(a, a)      # 두 vector의 연관성 파악 (범위: -inf ~ inf) a dot b = ||a|| ||b|| cos(theta)
+dot = np.dot(a, a)
 
-# 코사인 유사도 (Cosine Similarity)  # 순수하게 방향만 바라봄 (크기는 고려되지 않음) (범위: -1 ~ 0)
+# 코사인 유사도 (Cosine Similarity)
 cos_sim = np.dot(a, a) / (np.linalg.norm(a) * np.linalg.norm(a))
 
-# 벡터 놈(Norm) (e.g. 직각삼각형 => a: 밑변, b: 높이, c: 대각선)
-l1 = np.linalg.norm(a, ord=1)   # L1 (맨해튼: a + b)
-l2 = np.linalg.norm(a, ord=2)   # L2 (유클리드: c)
+# 벡터 노름
+l1 = np.linalg.norm(a, ord=1)   # L1
+l2 = np.linalg.norm(a, ord=2)   # L2 (유클리드)
 linf = np.linalg.norm(a, ord=np.inf)  # L∞
 ```
 
@@ -145,10 +145,10 @@ print(df)   # 2x + 3
 
 # 다변수 함수 편미분
 g = x**2 + x*y + y**2
-dg_dx = sp.diff(g, x)   # ∂g/∂x (∂: round)
+dg_dx = sp.diff(g, x)   # ∂g/∂x
 dg_dy = sp.diff(g, y)   # ∂g/∂y
 
-# 그래디언트 (∇f) — 가장 가파른 증가 방향 (∇: nebla)
+# 그래디언트 (∇f) — 가장 가파른 증가 방향
 gradient = [dg_dx, dg_dy]
 print(gradient)
 ```
@@ -161,31 +161,31 @@ print(gradient)
 import numpy as np
 from scipy import stats
 
-# --- PMF: 확률분포함수: 이산 분포 --- : 
+# --- PMF: 이산 분포 ---
 p = np.array([0.1, 0.2, 0.3, 0.25, 0.15])
 x = np.arange(1, 6)
-E_X = np.sum(x * p)   # E[X] = Σ x·p(x) : Expectation: 평균값
+E_X = np.sum(x * p)   # E[X] = Σ x·p(x)
 
-# --- PDF: 확률밀도함수: 연속 분포 (정규분포 예시) --- : 특정 위치에서의 값을 구하는 것이 아니고, 구간에서의 적분이 필요함
+# --- PDF: 연속 분포 (정규분포 예시) ---
 rv = stats.norm(loc=0, scale=1)
 E_X_cont = rv.mean()
 
-# --- 엔트로피 (Entropy): 최소로 하는 평균 비트 수 ---
+# --- 엔트로피 (Entropy) ---
 from scipy.stats import entropy
 H = entropy(p, base=2)   # -Σ p(x) log2 p(x)
 
-# --- 크로스 엔트로피 (Cross Entropy): 정답 label과 우리가 찾아낸 label에 대한 엔트로피 ---
+# --- 크로스 엔트로피 (Cross Entropy) ---
 q = np.array([0.15, 0.25, 0.25, 0.2, 0.15])
 H_pq = -np.sum(p * np.log2(q))   # H(p,q)
 
-# --- KL Divergence: Cross Entropy에서 Entropy(최소값...)를 뺀 값, 그러므로 항상 0 이상 ---
+# --- KL Divergence ---
 KL = entropy(p, q, base=2)   # D_KL(p||q) = H(p,q) - H(p)
 
 # --- 베이즈 정리 ---
-# p(θ|x) = p(x|θ)·p(θ) / p(x)  # theta를 바꿔가면서 x를 정답과 같아지도록 반복..
+# p(θ|x) = p(x|θ)·p(θ) / p(x)
 # Posterior ∝ Likelihood × Prior
 
-# --- MLE (Maximum Likelihood Estimation) ---
+# --- MLE ---
 # θ_MLE = argmax_θ p(x|θ)
 
 # --- 코사인 유사도 (벡터 연산) ---
@@ -225,10 +225,6 @@ print(f"전체 Iteration 수: {total_iterations}")
 - 큰 배치: 안정적 gradient, VRAM 많이 사용
 - 작은 배치: 노이즈 → local minima 탈출에 유리
 
-*e.g. 1000개의 전체 dataset을 100개씩의 sample로 나눔
-* epoch: 1000
-* batch size: 100
-* step (iteration): 10
 ---
 
 ## 6. 주요 이미지 데이터셋
