@@ -37,7 +37,18 @@ Pre-training  →  Fine-tuning  →  [Pruning]  →  Deployment
 * Sparse matrix compressed format
   * CSR (Compressed sparse row): input vector가 여러 번 사용
   * CSC (Compressed sparse column): output vector가 여러 번 사용
- 
+
+* Sparsity: 전체 가중치 중 0인 것의 비율
+
+```
+# 예: 가중치가 10개인 레이어
+weight = [0.8, 0.0, 0.0, -0.3, 0.0, 0.5, 0.0, 0.0, 0.1, 0.0]
+#                                     0이 6개, 전체 10개
+
+sparsity = 0이 아닌 것 / 전체  가 아니라
+sparsity = 0인 것 / 전체 = 6/10 = 0.6
+```
+
 ```
 Inner-vector wise Pruning — "벡터 안에서" 제거
 벡터를 [v0, v1, v2, v3] 으로 나눴을 때,
