@@ -405,5 +405,59 @@ W (전체) 를 g개씩 그룹 분할
 **QuaRot**
 * Quantization Rotation(?)
   * quantization matrix가 타원형으로 되어있는 모양을 회전시켜서 x와 y의 편차를 적게함으로써 (정사각형 모양으로 만듦) quantization을 쉽게 하도록.. (SmoothQuant와 비슷??)
-  * 
-    
+
+**SpinQuant**
+* <실습...???>
+
+**Weight-Only Quantization**
+* W(Weight)A(Activation)이 8*8이라고 할 때(즉, W8A8 구조), A는 그대로 8bits로 그대로 놔두고, W만 4bits로만 줄여줌. 대부분의 메모리는 Weight가 대부분을 차지하고, Activation은 아주 작은 부분만 차지하므로, 전체 성능을 고려해서 W만 quantization을 함
+* e.g) GPTQ 모델
+
+**GPTQ**
+* Layer-Wise Quantization
+
+**SpQR**
+* Bi-Level Quantization (2중으로 quantization을 함). Group별(FP16의 scale을 가지는 group)로 나눠서 quantization.
+* High-sensitivity outliers를 따로 빼내서 FP16의 weight를 주고 quantization... 나머지는 group별로 scaling해서 quantization
+
+**AWQ (Activation-aware Weight Quantization)**
+* "중요한" 채널의 1%를 FP16으로 quantization (perplexity가 낮아짐 (좋아짐!))
+* 곱해지는 activation의 분포를 보고 "중요한"채널을 찾아야 함...
+* 중요한 채널에는 s를 곱하고, 그것의 input에는 s^(-1)을 하자! (그럼 W-matrix가 균등해지고, accuracy가 동일하게 보장된다!)
+
+**QLoRA(Quant+LoRA)**
+* LoRA의 original transformer model 16bits를 4bits로 quantization
+  * => NF4 방식: NormalFloat 4bits
+  * 즉, Data가 많은 곳(0 부근)에서는 좁은 간격, 적은 곳(-1 or 1 부근)에서는 넓은 간격: non-uniform quant. (but, 적분해도 면적은 같음)
+* 그리고 이후에 group level로 2중 quantization까지 해줌 (SpQR에서 하던 것...): Double Quantization
+* De-quant도 2중으로 해야 해서 성능은 떨어지지만, 메모리 사이즈는 많이 줄일 수 있음!
+* e.g) LLapa.cpp도 double-quantization (Q4_K)
+
+## Efficient Transformer
+**Fixed Sparse Attention**
+  * 문장을 꼼꼼하게 읽지 말고 속독하듯 건너뛰면서 읽으면서 중요한 단어들만 찾는 패턴을 찾음
+  * Longformer
+    * Local Attention (주변 단어들과 연산, 먼 단어들은 보지 말자!)
+    * Global Attention (전체 attention 중에서 중요한 token하고는 모두 계산하자!)
+  * Big Bird
+
+**Dynamic Sparsity - SpAtten**
+  * 토큰 pruning, Head pruning (점점 중요하지 않은 단어들을 제거.. 각 layer에서 attention 연산을 보고 중요하지 않은 단어들을 제거함)
+
+**Deja Vu**
+* Conditional Computation
+  * Switch Transformers
+  * MoE: Mixture of Experts): W-matrix를 분리하기 위해서 FFN layer를 FFN-1, FFN-2, ... FFN-n등으로 분류하고 router가 이들을 할당하는 것. (Expert: 개별적인 FFN-x를 말함)
+
+**Speculative Decoding**
+* 덩치가 큰 model이 사이즈가 작은 비서 model들을 두고 regressive하게 decoding을 시키고, 나중에 모아서 paraller하게 검수만 하는 식으로 처리
+
+**H2O**
+* KV cache에서 중요한 단어들만 놔두고 나머지는 없앰.
+  * H2 (Heavy-Heater 2개)와 최근의 KV embedding만 놔두고 나머지는 없앰.
+
+**Operator Fusion**
+* 메모리에서 W, A의 Q, K를 읽어와서 저장하기 전에 Linear computing과 SiLU computing을 차례대로 먼저 수행. (이전에는 따로 해서 각각 저장해서 다시 읽어왔었음)
+* memory와 시간을 절약 가능.. but Tiling이 필요 (전체 중에서 tile처럼 작은 영역으로 쪼개서 해당 tile 내에서 처리, 다음 tile 처리.. )
+  * tiling을 해도 softmax에서 전체 합으로 나눠줘야 하는데, tiling을 하게 되면, 부분에서 처리하게 되므로 전체의 합을 알 수 없어서 softmax 사용 불가능
+    * FlashAttention: Tiled Softmax 방식 도입!!
