@@ -309,7 +309,7 @@ W_new = W_original + Mask ⊙ (A × B)
 
 ### PTQ (Post-Training Quantization)
 * 학습이 완료된 모델의 가중치(및 활성화)를 낮은 비트폭으로 변환하는 기법.
-* 재학습 없이 추론 속도와 메모리 효율을 높이는 것이 목표
+* 재학습 없이 추론 속도와 메모리 효율을 높이는 것이 목표 (빠른 속도로 처리 가능)
 
 ```
 FP32 Model (학습 완료)
@@ -464,9 +464,9 @@ W (전체) 를 g개씩 그룹 분할
 
 ---
 
-# Quantization 
+# (실습) Quantization for CNN
 
-* Uniform Quantization
+## Uniform Quantization: S와 Z에 대한 memory overhead
   * Linear Quantization– Per-tensor / Per-channel Quantization– Quantized inference
   * q_min ~ q_max: 양자화한 결과의 범위
   * r = (q - Z) * S: weights => (quantization weights - zero point) * scale
@@ -480,7 +480,40 @@ z = torch.round(quantized_min - fp_min / scale)
 Scale(S)와 Zero-Point(Z)는 quantization을 함으로써 추가되는 파라미터 -> 별도의 메모리 사용..
 메모리를 줄이자!! -> Z를 0으로 하면 메모리 안써도 됨! 그러면 symmetric하게 양자화된다!!
 ```
-* Non-uniform Quantization
-  * K-Means Quantization, Quantization-aware Training
+  * per-channel quantization: channel별로 quantization level이 다 제각각이므로 channel별로 묶어서 quantization!
+  * Model Fusion
+    * (conv2d + Quantizaion) + (batch norm + Quantizaion) + (ReLU + Quantizaion) => (conv2d + batch norm + ReLU) + Quantizaion
+
+## Non-uniform Quantization: quantization의 간격을 다르게 할 것이다!! (S도 없다, Z도 없다!!, 대신 codebook와 index가 있음)
+  * K-Means Quantization
+    * W들을 clustring해서 비슷한 것들끼리 묶음
+    * indexes와 codebook으로 quantization!! (S와 Z는 사용 불가하므로 codebook으로 사용)
+  * Quantization-aware Training
 * Quantization with PyTorch API
   * Post-Training Quantization, Quantization Aware Trainin
+
+# (실습) Quantization for LLM
+
+## Weight-only Quantization
+### AWQ (Activation-aware Weight Quantization)
+* W를 quant한 Q(W)의 어떤 채널이 중요하다고 하면, 그 채널을 scaling을 하고, min/max 채널도 신경을 쓰면서 적절하게 scaling을 해야 함
+  * scaling한 perplexity 값이 낮은 값을 갖도록 (낮아야 좋은것)
+* WX -> Q(W*s)(s^(-1)*X)
+
+## Weight and Activation Quantization
+### SmoothQuant
+### QuaRot/SpinQuant
+
+```
+일반적인 Transformer의 레이어 구조는 다음과 같습니다:
+
+**Self-Attention Block**
+
+Input → LayerNorm → Query/Key/Value 생성 (FC) → Attention 연산 → Softmax → Attention Output
+
+Feed-Forward Network (FFN)
+
+Attention Output → LayerNorm → FC1 → 활성화 함수 (ReLU, GELU 등) → FC2 → Output
+
+그러므로 Transformer의 레이어에서 LayerNorm의 가중치에 스케일링 팩터 s를 나누고, FC의 가중치에 스케일링 팩터 s를 곱하면 weight에는 s를 곱하고, activation에는 s를 나누는 효과를 얻을 수 있습니다.
+```
