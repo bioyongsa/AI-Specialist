@@ -461,3 +461,26 @@ W (전체) 를 g개씩 그룹 분할
 * memory와 시간을 절약 가능.. but Tiling이 필요 (전체 중에서 tile처럼 작은 영역으로 쪼개서 해당 tile 내에서 처리, 다음 tile 처리.. )
   * tiling을 해도 softmax에서 전체 합으로 나눠줘야 하는데, tiling을 하게 되면, 부분에서 처리하게 되므로 전체의 합을 알 수 없어서 softmax 사용 불가능
     * FlashAttention: Tiled Softmax 방식 도입!!
+
+---
+
+# Quantization 
+
+* Uniform Quantization
+  * Linear Quantization– Per-tensor / Per-channel Quantization– Quantized inference
+  * q_min ~ q_max: 양자화한 결과의 범위
+  * r = (q - Z) * S: weights => (quantization weights - zero point) * scale
+  * q = r  / S + Z (unit: int = (floating-point / floating point) / int) => floating의 나눗셈을 int로 해야 하므로 round()로 구현..
+```
+q =𝑖𝑛𝑡(𝑟𝑜𝑢𝑛𝑑(𝑟/𝑠)) + z
+
+s = (fp_max - fp_min) / (quantized_max - quantized_min)
+z = torch.round(quantized_min - fp_min / scale)
+
+Scale(S)와 Zero-Point(Z)는 quantization을 함으로써 추가되는 파라미터 -> 별도의 메모리 사용..
+메모리를 줄이자!! -> Z를 0으로 하면 메모리 안써도 됨! 그러면 symmetric하게 양자화된다!!
+```
+* Non-uniform Quantization
+  * K-Means Quantization, Quantization-aware Training
+* Quantization with PyTorch API
+  * Post-Training Quantization, Quantization Aware Trainin
