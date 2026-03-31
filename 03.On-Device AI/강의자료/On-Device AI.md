@@ -306,3 +306,104 @@ W_new = W_original + Mask ⊙ (A × B)
       │
       └── SPP 사용 → Mask 보존 + 효율적 Fine-tuning ✅
 ```
+
+### PTQ (Post-Training Quantization)
+* 학습이 완료된 모델의 가중치(및 활성화)를 낮은 비트폭으로 변환하는 기법.
+* 재학습 없이 추론 속도와 메모리 효율을 높이는 것이 목표
+
+```
+FP32 Model (학습 완료)
+        │
+        ▼
+  [Calibration]  ← 소량의 대표 데이터(Calibration Dataset)로 통계 수집
+        │          (min/max, 분포, outlier 등)
+        ▼
+  [Quantization] ← FP32 → INT8 / INT4 등으로 변환
+        │
+        ▼
+  INT Model (추론용)
+```
+* 핵심 개념은 Scale(s) 와 Zero-point(z) 를 통한 선형 매핑
+```
+Q(x) = round( x / s + z )          # 양자화
+x̂    = s * (Q(x) - z)               # 역양자화 (dequantization)
+
+s = (x_max - x_min) / (2^b - 1)    # b = bit width
+```
+
+**1. Weight-Activation Quantization**
+가중치(W)와 활성화(Activation, X) 를 동시에 양자화하는 방식.
+```
+W (INT)          X (INT)
+            │                │
+            └────────┬────────┘
+                     │
+              INT Arithmetic
+              (e.g. INT8 GEMM)
+                     │
+                     ▼
+                 Output (INT or FP)
+```
+
+**2. Weight-Only Quantization**
+가중치(W)만 낮은 비트폭으로 저장하고, 연산 시에는 FP16/BF16으로 역양자화해서 사용하는 방식.
+```
+저장:   W (INT4/INT8)  ← 메모리 절감
+           │
+           ▼ (dequantize at runtime)
+연산:   W (FP16) × X (FP16)  ← FP 연산
+           │
+           ▼
+        Output (FP16)
+```
+**두 방식 비교 요약**
+```
+Weight-Activation          Weight-Only
+                ─────────────────          ───────────
+저장 형식          INT (W + A)               INT (W만)
+추론 연산          INT GEMM                  FP16 GEMM
+속도 이점          Compute-bound에 강함       Memory-bound에 강함
+정확도 손실        상대적으로 큼              상대적으로 작음
+구현 복잡도        높음 (A 보정 필요)         낮음
+대표 타겟          엣지 디바이스, 서버        LLM 대규모 모델
+```
+
+**ZeroQuant**
+Microsoft가 제안한 Weight-Activation PTQ 기법으로, LLM의 대규모 모델에서 INT8 추론을 효율적으로 실현하기 위해 설계
+
+**핵심 아이디어 3가지**
+* Group-wise Quantization (가중치)
+  * 가중치를 작은 그룹 단위로 나누어 각각 독립적인 scale을 적용.
+```
+W (전체) 를 g개씩 그룹 분할
+  ┌────────────────────────────┐
+  │ [g0: s0] [g1: s1] [g2: s2] │  ← 그룹마다 다른 scale
+  └────────────────────────────┘
+
+- 그룹 크기 g가 작을수록 정밀도 ↑, 오버헤드 ↑
+- 전체 단일 scale보다 outlier에 강건함
+```
+* Token-wise Quantization (활성화)
+  * Activation을 토큰 단위로 scale을 개별 계산.
+```
+입력 시퀀스: [Token_0, Token_1, ..., Token_T]
+                │          │             │
+              scale_0    scale_1      scale_T  ← 토큰마다 동적 계산
+
+- 각 토큰의 분포가 다르므로 토큰별 scale이 정확도에 유리
+- Static calibration 대비 outlier 대응력 향상
+```
+
+**SmoothQuant**
+* outlier...???
+
+**OmniQuant**
+* Learnable Weight Clipping (LWC)
+* Learnable Equivalent Transformation (LET)
+  * (p.31 그림) tensor로 quantization하면, channel별로 scattering되는데, 이들을 모아주고 (shift), 다시 channel-wise로 scaling해서 quantization함
+
+**QuaRot**
+* Quantization Rotation(?)
+  * quantization matrix가 타원형으로 되어있는 모양을 회전시켜서 x와 y의 편차를 적게함으로써 (정사각형 모양으로 만듦) quantization을 쉽게 하도록.. (SmoothQuant와 비슷??)
+  * 
+    
