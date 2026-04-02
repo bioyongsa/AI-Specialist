@@ -1,0 +1,175 @@
+Part I - Prototype RAG 구축
+
+1. data loading - WikipediaReader
+
+# 2. 질문과 관련된 도시가 목록에 없으면 추가
+city_related_to_question = 'Dresden'
+if city_related_to_question not in city_names:
+    city_names.append(city_related_to_question)
+
+# 3. Wikipedia에서 각 도시의 페이지를 Document 객체로 로드
+reader = WikipediaReader()
+documents = reader.load_data(city_names, auto_suggest=False)
+----------------------------------------------------------------------------------------------------------------------
+2. VectorStoreIndex 생성 - VectorStoreIndex.from_documents
+
+index = VectorStoreIndex.from_documents(documents)
+----------------------------------------------------------------------------------------------------------------------
+3. Query Engine
+
+# index에서 바로 query engine 생성
+query_engine = index.as_query_engine()
+
+# 질의 실행
+response = query_engine.query("What's the arts and culture scene in Berlin?")
+print(textwrap.fill(str(response), 100))
+----------------------------------------------------------------------------------------------------------------------
+4. Retriever 직접 사용
+
+retriever = index.as_retriever()
+
+city_question = 'Which Korean city has a relationship with Dresden?'
+ret = retriever.retrieve(city_question)
+
+for i in range(len(ret)):
+    print(f"Retrieved Passage {i+1}\n", ret[i].text, '\n\n\n')
+
+## 반환값 구조
+# ret         # List[NodeWithScore]
+# ret[i]      # NodeWithScore 객체
+# ret[i].text # 검색된 텍스트 청크 (Node의 원문)
+# ret[i].score # 유사도 점수 (높을수록 관련성 높음)
+----------------------------------------------------------------------------------------------------------------------
+5. RAG_from_scratch 클래스: Retrieve -> Generate의 두 단계를 명시적으로 분리하여 구현한 최소 RAG class
+
+class RAG_from_scratch:
+
+    def retrieve(self, query: str):
+        """벡터 인덱스에서 관련 텍스트를 검색한다."""
+        results = query_engine.query(query)  # query_engine이 검색 + 중간 요약
+        return results
+
+    def generate_response(self, query: str, context_str) -> str:
+        """검색된 Context를 바탕으로 LLM이 답변을 생성한다."""
+        completion = oai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            temperature=0,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"We have provided context information below.\n"
+                        f"---------------------\n"
+                        f"{context_str}"
+                        f"\n---------------------\n"
+                        f"Given this information, please answer the question: {query}"
+                    )
+                }
+            ]
+        ).choices[0].message.content
+        return completion
+
+    def query(self, query: str) -> str:
+        """메인 메서드: retrieve → generate 순서로 실행."""
+        context_str = self.retrieve(query)   # ① 검색
+        completion = self.generate_response(query, context_str)  # ② 생성
+        return completion
+
+# 인스턴스 생성 및 사용
+rag = RAG_from_scratch()
+answer = rag.query('Which Korean city has a relationship with Dresden?')
+print(pretty_print(answer))
+----------------------------------------------------------------------------------------------------------------------
+6. RAG 성능 최적화
+
+6.1. Chunk Size 조절 - SentenceSplitter
+
+text_splitter_short = SentenceSplitter(chunk_size=200, chunk_overlap=50)
+index_short = VectorStoreIndex.from_documents(
+    documents=documents,
+    transformations=[text_splitter_short]
+)
+
+>>>>>>
+
+6.2. PromptTemplate
+
+simple_qa_prompt = PromptTemplate(
+    "Context information is below.\n"
+    "---------------------\n"
+    "{context_str}\n"          # ← 검색된 청크들이 여기 삽입됨
+    "---------------------\n"
+    "Given the context information and not prior knowledge, "
+    "answer the query.\n"
+    "Query: {query_str}\n"     # ← 사용자 질의가 여기 삽입됨
+    "Answer: "
+)
+
+>>>>>>
+
+6.3. Refined_RAG (개선된 prompt 설계)
+
+class Refine_RAG:
+
+    def retrieve(self, query: str):
+        """Retriever와 Query Engine을 동시에 실행해 두 결과를 모두 반환."""
+        ret     = retriever.retrieve(query)    # 원본 Node 청크 목록
+        results = query_engine.query(query)    # 중간 요약/답변 문자열
+        return ret, results
+
+    def generate_response(self, query: str, context_str) -> str:
+        """구조화된 프롬프트로 LLM에게 최종 답변 생성 요청."""
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. Answer as concisely as possible.",
+            },
+            {
+                "role": "user",
+                "content": f"""
+###Instruction
+Please answer the following question based on the provided context.
+Your answer should be short and concise.
+Basically, you have to answer the question based on the provided context.
+But you can use your parametrized knowledge when the provided context was wrong
+or unrelated to the question.
+When you generate the answer, you should explain the reason why you deduced
+such an answer from the context.
+
+### Question
+{query}
+
+### Provided Context
+{context_str}
+
+### Answer
+{answer}
+
+### Reason
+{reason}
+                """
+            }
+        ]
+
+        response = oai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            temperature=0,
+            messages=messages,
+        )
+
+        return response.choices[0].message.content
+
+    def query(self, query: str) -> str:
+        """전체 파이프라인: retrieve → generate."""
+        ret, context_str = self.retrieve(query)
+        completion = self.generate_response(query, context_str)
+        return completion
+
+refine_rag = Refine_RAG()
+
+# 사용 예시
+sample_question = "City council of Suwon addressed illegal dumping of household waste in what way?"
+answer = refine_rag.query(sample_question)
+print(answer)
+
+
