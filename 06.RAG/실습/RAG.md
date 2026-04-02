@@ -1,0 +1,676 @@
+# 📓 RAG (Retrieval-Augmented Generation) 완전 정복
+
+> **LlamaIndex + OpenAI API**를 활용한 RAG 시스템 구축 및 성능 최적화 가이드  
+> 실습 노트북 `2__RAG.ipynb` 기반 핵심 코드 해설
+
+---
+
+## 목차
+
+1. [RAG란 무엇인가?](#0-rag란-무엇인가)
+2. [환경 설정 및 기본 API 호출](#1-환경-설정-및-기본-api-호출)
+3. [Section I: Prototype RAG 구축](#section-i-prototype-rag-구축)
+   - [데이터 로드 — WikipediaReader](#11-데이터-로드--wikipediareader)
+   - [VectorStoreIndex 생성](#12-vectorstoreindex-생성)
+   - [Query Engine 기본 사용법](#13-query-engine-기본-사용법)
+   - [Retriever 직접 사용](#14-retriever-직접-사용)
+   - [RAG_from_scratch 클래스](#15-rag_from_scratch-클래스)
+4. [Section II: RAG 성능 최적화](#section-ii-rag-성능-최적화)
+   - [Chunk Size 조절 — SentenceSplitter](#21-chunk-size-조절--sentencesplitter)
+   - [Custom Query Engine + PromptTemplate](#22-custom-query-engine--prompttemplate)
+   - [Refine_RAG — 개선된 프롬프트 설계](#23-refine_rag--개선된-프롬프트-설계)
+   - [추가 최적화 요소 (Embedding, Temperature)](#24-추가-최적화-요소)
+5. [전체 파이프라인 요약](#전체-파이프라인-요약)
+
+---
+
+## 0. RAG란 무엇인가?
+
+```
+[사용자 질문]
+      │
+      ▼
+┌─────────────┐      ┌──────────────────────┐
+│  Retriever  │─────▶│  외부 지식 DB (벡터)  │
+└─────────────┘      └──────────────────────┘
+      │  관련 문서 chunks 반환
+      ▼
+┌─────────────┐
+│  Generator  │  (LLM: GPT 등)
+│  (LLM)      │  → 질문 + 검색 결과 → 최종 답변
+└─────────────┘
+```
+
+**RAG의 3단계 흐름:**
+1. 사용자 질의(Query)가 입력된다
+2. 벡터 DB에서 질의와 유사한 문서 passage를 검색(Retrieve)한다
+3. LLM이 검색된 문서를 Context로 삼아 답변을 생성(Generate)한다
+
+> **핵심 동기:** LLM은 학습 데이터 이후의 최신 정보나, 특정 도메인의 세부 지식에 취약하다.  
+> RAG는 외부 지식 소스를 실시간으로 주입함으로써 이 한계를 보완한다.
+
+---
+
+## 1. 환경 설정 및 기본 API 호출
+
+### 패키지 설치
+
+```python
+!pip install llama-index==0.12.2 \
+    llama-index-llms-openai==0.3.1 \
+    llama-index-embeddings-huggingface \
+    llama-index-readers-wikipedia==0.3.0 \
+    wikipedia==1.4.0 \
+    openai==1.55.3 \
+    trulens==1.2.0 trulens-providers-openai==1.2.0 \
+    langchain nltk streamlit watchdog --quiet
+```
+
+### OpenAI API 키 설정 및 기본 임포트
+
+```python
+import os
+import openai
+
+os.environ["OPENAI_API_KEY"] = "sk-..."  # 본인 API 키 입력
+
+from llama_index.core import (
+    VectorStoreIndex,
+    SimpleDirectoryReader,
+    Document,
+    get_response_synthesizer
+)
+from llama_index.readers.wikipedia import WikipediaReader
+from llama_index.core.node_parser import SentenceSplitter
+
+import textwrap
+import nltk
+nltk.download('punkt')
+```
+
+| 모듈 | 역할 |
+|---|---|
+| `VectorStoreIndex` | 문서를 임베딩 벡터로 변환해 인메모리 벡터 인덱스 생성 |
+| `WikipediaReader` | Wikipedia 페이지를 `Document` 객체로 로드 |
+| `SentenceSplitter` | 문서를 일정 크기의 chunk(Node)로 분할 |
+
+### 기본 질문 함수 (`generate_answer`)
+
+LLM에 질문을 던지는 가장 기본적인 래퍼 함수다.
+
+```python
+def generate_answer(question: str) -> str:
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant."
+        },
+        {
+            "role": "user",
+            "content": question,
+        },
+    ]
+
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+    )
+
+    return response.choices[0].message.content
+```
+
+**구조 해설:**
+- `messages`: OpenAI Chat API의 입력 형식. `system` 역할은 모델의 페르소나를 설정하고, `user` 역할은 실제 사용자 질문을 담는다.
+- `response.choices[0].message.content`: API 응답에서 실제 텍스트만 추출하는 관용 패턴이다.
+
+### 출력 포맷 유틸 (`pretty_print`)
+
+```python
+import textwrap
+
+def pretty_print(answer: str) -> str:
+    wrapped_text = textwrap.fill(answer, width=80)
+    return wrapped_text
+```
+
+`textwrap.fill(text, width)` — 긴 문자열을 지정 너비에서 자동 줄바꿈한다. 터미널 출력 시 가독성 확보에 유용하다.
+
+---
+
+## Section I: Prototype RAG 구축
+
+### 1.1 데이터 로드 — `WikipediaReader`
+
+```python
+# 1. 도시 이름 목록을 파일에서 읽어 리스트로 구성
+city_name_path = 'city_short.txt'
+city_names = []
+
+with open(city_name_path, 'r', encoding='utf-8') as file:
+    lines = file.readlines()
+    for line in lines:
+        city = line.split(':')[0][:-1]  # "Berlin: 독일" → "Berlin" 파싱
+        city_names.append(city)
+
+# 2. 질문과 관련된 도시가 목록에 없으면 추가
+city_related_to_question = 'Dresden'
+if city_related_to_question not in city_names:
+    city_names.append(city_related_to_question)
+
+# 3. Wikipedia에서 각 도시의 페이지를 Document 객체로 로드
+reader = WikipediaReader()
+documents = reader.load_data(city_names, auto_suggest=False)
+```
+
+**핵심 포인트:**
+- `WikipediaReader.load_data(pages, auto_suggest=False)` — `pages`는 Wikipedia 페이지 타이틀 목록이다. `auto_suggest=False`로 설정해야 검색어 자동 교정을 방지하고 정확한 페이지를 가져온다.
+- 반환값 `documents`는 `Document` 객체의 리스트이며, 각 객체가 Wikipedia 한 페이지의 전체 텍스트를 담는다.
+
+```
+[city_names 리스트]
+    "Berlin", "Tokyo", "Dresden", ...
+          │
+          ▼ WikipediaReader.load_data()
+[Document 리스트]
+    Document(text="Berlin is the capital...", metadata={...})
+    Document(text="Tokyo is a city...",       metadata={...})
+    ...
+```
+
+---
+
+### 1.2 `VectorStoreIndex` 생성
+
+```python
+index = VectorStoreIndex.from_documents(documents)
+```
+
+이 한 줄이 RAG의 핵심 전처리 과정을 모두 수행한다.
+
+```
+[Document 리스트]
+      │
+      ▼ 1) SentenceSplitter로 분할
+[Node 리스트]  (각 Node = 하나의 텍스트 청크)
+      │
+      ▼ 2) Embedding 모델로 벡터화
+[벡터 리스트]  (각 Node → 고차원 float 벡터)
+      │
+      ▼ 3) VectorStore에 저장 (기본: 인메모리)
+[VectorStoreIndex]  ← 검색 가능한 상태
+```
+
+**내부 동작 요약:**
+
+| 단계 | 설명 |
+|---|---|
+| 청킹 | Document를 일정 크기의 Node로 분할 (기본 chunk_size=1024) |
+| 임베딩 | 각 Node를 벡터로 변환 (기본: OpenAI text-embedding-ada-002) |
+| 저장 | 벡터와 원문 텍스트를 인메모리 벡터 스토어에 저장 |
+
+---
+
+### 1.3 Query Engine 기본 사용법
+
+```python
+# index에서 바로 query engine 생성
+query_engine = index.as_query_engine()
+
+# 질의 실행
+response = query_engine.query("What's the arts and culture scene in Berlin?")
+print(textwrap.fill(str(response), 100))
+```
+
+**`as_query_engine()`이 하는 일:**
+
+```
+사용자 질의 (query_str)
+      │
+      ▼ 1) 질의를 벡터로 임베딩
+      │
+      ▼ 2) 벡터 DB에서 유사 Node 검색 (기본 top_k=2)
+      │
+      ▼ 3) 검색된 Node(Context) + 원본 질의를 LLM에 전달
+      │
+      ▼ 4) LLM이 Context 기반 답변 생성
+      │
+      ▼ Response 객체 반환
+```
+
+`response` 객체를 `str(response)`로 변환하면 최종 답변 텍스트를 얻을 수 있다.
+
+---
+
+### 1.4 Retriever 직접 사용
+
+Query Engine 내부의 검색 단계만 분리해 어떤 청크가 검색되었는지 확인할 수 있다.
+
+```python
+retriever = index.as_retriever()
+
+city_question = 'Which Korean city has a relationship with Dresden?'
+ret = retriever.retrieve(city_question)
+
+for i in range(len(ret)):
+    print(f"Retrieved Passage {i+1}\n", ret[i].text, '\n\n\n')
+```
+
+**반환값 구조:**
+
+```python
+ret         # List[NodeWithScore]
+ret[i]      # NodeWithScore 객체
+ret[i].text # 검색된 텍스트 청크 (Node의 원문)
+ret[i].score # 유사도 점수 (높을수록 관련성 높음)
+```
+
+> Retriever를 별도로 꺼내 쓰면 "어떤 근거로 답변을 생성했는가"를 투명하게 확인할 수 있다. 이는 RAG 디버깅의 핵심 수단이다.
+
+---
+
+### 1.5 `RAG_from_scratch` 클래스
+
+Retrieve → Generate 두 단계를 명시적으로 분리해 구현한 최소 RAG 클래스다.
+
+```python
+from openai import OpenAI
+oai_client = OpenAI()
+
+class RAG_from_scratch:
+
+    def retrieve(self, query: str):
+        """벡터 인덱스에서 관련 텍스트를 검색한다."""
+        results = query_engine.query(query)  # query_engine이 검색 + 중간 요약
+        return results
+
+    def generate_response(self, query: str, context_str) -> str:
+        """검색된 Context를 바탕으로 LLM이 답변을 생성한다."""
+        completion = oai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            temperature=0,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"We have provided context information below.\n"
+                        f"---------------------\n"
+                        f"{context_str}"
+                        f"\n---------------------\n"
+                        f"Given this information, please answer the question: {query}"
+                    )
+                }
+            ]
+        ).choices[0].message.content
+        return completion
+
+    def query(self, query: str) -> str:
+        """메인 메서드: retrieve → generate 순서로 실행."""
+        context_str = self.retrieve(query)   # ① 검색
+        completion = self.generate_response(query, context_str)  # ② 생성
+        return completion
+
+# 인스턴스 생성 및 사용
+rag = RAG_from_scratch()
+answer = rag.query('Which Korean city has a relationship with Dresden?')
+print(pretty_print(answer))
+```
+
+**클래스 설계 원칙:**
+
+```
+RAG_from_scratch.query(query)
+        │
+        ├─ retrieve(query)
+        │       └─ query_engine.query(query)  → Context 문자열
+        │
+        └─ generate_response(query, context_str)
+                └─ oai_client.chat.completions.create(...)  → 최종 답변
+```
+
+`temperature=0` — 재현성(determinism)을 위해 0으로 고정한다. 같은 입력에 항상 같은 출력이 나온다.
+
+---
+
+## Section II: RAG 성능 최적화
+
+RAG의 성능 평가 기준:
+- **Groundedness**: 답변이 검색된 컨텍스트에 근거하는가?
+- **Answer Relevance**: 답변이 질문에 관련성이 있는가?
+- **Context Relevance**: 검색된 컨텍스트가 질문에 적합한가?
+
+---
+
+### 2.1 Chunk Size 조절 — `SentenceSplitter`
+
+문서를 Node로 분할할 때 청크 크기를 조절하면 검색 품질이 달라진다.
+
+```python
+from llama_index.core.node_parser import SentenceSplitter
+
+# 짧은 청크: 세밀하지만 문맥이 잘릴 수 있음
+text_splitter_short = SentenceSplitter(chunk_size=200, chunk_overlap=50)
+index_short = VectorStoreIndex.from_documents(
+    documents=documents,
+    transformations=[text_splitter_short]
+)
+
+# 긴 청크: 문맥이 풍부하지만 불필요한 정보가 섞일 수 있음
+text_splitter_long = SentenceSplitter(chunk_size=1024, chunk_overlap=200)
+index_long = VectorStoreIndex.from_documents(
+    documents=documents,
+    transformations=[text_splitter_long]
+)
+
+# top_k=1: 비교를 위해 각 retriever가 1개의 Node만 반환
+retriever_short = index_short.as_retriever(similarity_top_k=1)
+retriever_long  = index_long.as_retriever(similarity_top_k=1)
+```
+
+**파라미터 해설:**
+
+| 파라미터 | 설명 |
+|---|---|
+| `chunk_size` | 하나의 Node(청크)에 들어갈 최대 토큰 수 |
+| `chunk_overlap` | 인접 청크 간 겹치는 토큰 수. 청크 경계에서 정보가 잘리는 것을 방지 |
+| `similarity_top_k` | 질의 시 검색해서 반환할 Node 개수 |
+
+**Chunk Size 트레이드오프:**
+
+```
+chunk_size 작을 때 (200)
+  장점: 정밀한 검색, 불필요한 정보 최소화
+  단점: 답변에 필요한 정보가 여러 청크에 걸쳐 있으면 누락 발생
+
+chunk_size 클 때 (1024)
+  장점: 긴 문맥을 하나의 Node에 포함 → 답변 완성도 높음
+  단점: 관련 없는 텍스트가 섞여 LLM을 혼란스럽게 할 수 있음
+```
+
+**검색 결과 비교 실험:**
+
+```python
+question = (
+    "In Antananarivo, what were the foundational materials of traditional "
+    "architecture, and what efforts have been made to protect and restore "
+    "the city's architectural and cultural heritage?"
+)
+
+# 짧은 청크: 문맥이 잘릴 가능성
+ret_passages_short = retriever_short.retrieve(question)
+for passage in ret_passages_short:
+    print(pretty_print(passage.text))
+
+# 긴 청크: 필요한 정보를 온전히 담을 가능성
+ret_passages_long = retriever_long.retrieve(question)
+for passage in ret_passages_long:
+    print(pretty_print(passage.text))
+```
+
+---
+
+### 2.2 Custom Query Engine + `PromptTemplate`
+
+LlamaIndex의 `CustomQueryEngine`을 상속해 프롬프트를 직접 제어한다.
+
+#### 프롬프트 템플릿 정의
+
+```python
+from llama_index.core import PromptTemplate
+
+# 옵션 A: 직접 답변 프롬프트
+simple_qa_prompt = PromptTemplate(
+    "Context information is below.\n"
+    "---------------------\n"
+    "{context_str}\n"          # ← 검색된 청크들이 여기 삽입됨
+    "---------------------\n"
+    "Given the context information and not prior knowledge, "
+    "answer the query.\n"
+    "Query: {query_str}\n"     # ← 사용자 질의가 여기 삽입됨
+    "Answer: "
+)
+
+# 옵션 B: 요약 프롬프트
+short_sum_prompt = PromptTemplate(
+    """Write a summary of the following. Try to use only the information provided.
+Try to include as many key details as possible.
+---------------------\n
+{context_str}
+---------------------\n
+SUMMARY:"""
+)
+```
+
+`{context_str}`과 `{query_str}`은 런타임에 실제 값으로 치환되는 플레이스홀더다.
+
+#### Custom Query Engine 클래스 구현
+
+```python
+from llama_index.core.query_engine import CustomQueryEngine
+from llama_index.core.retrievers import BaseRetriever
+from llama_index.core.response_synthesizers import BaseSynthesizer
+from llama_index.llms.openai import OpenAI
+
+class OurCustomQueryEngine(CustomQueryEngine):
+
+    retriever: BaseRetriever           # 검색 담당 컴포넌트
+    response_synthesizer: BaseSynthesizer  # 응답 합성 담당 컴포넌트
+    llm: OpenAI                        # 생성 모델
+    qa_prompt: PromptTemplate = simple_qa_prompt  # 기본 프롬프트
+
+    def custom_query(self, query_str: str):
+        # 1) 질의와 관련된 Node 검색
+        nodes = self.retriever.retrieve(query_str)
+
+        # 2) Node의 텍스트를 하나의 문자열로 결합
+        context_str = "\n\n".join([n.node.get_content() for n in nodes])
+
+        # 3) 프롬프트에 context + query 삽입 후 LLM 호출
+        response = self.llm.complete(
+            self.qa_prompt.format(context_str=context_str, query_str=query_str)
+        )
+
+        return str(response)
+
+llm = OpenAI(model="gpt-3.5-turbo")
+```
+
+**두 버전 비교 실험:**
+
+```python
+from llama_index.core import get_response_synthesizer
+
+retriever   = index.as_retriever()
+synthesizer = get_response_synthesizer(response_mode="compact")
+
+# 버전 A: 직접 답변
+query_engine_answer = OurCustomQueryEngine(
+    retriever=retriever,
+    response_synthesizer=synthesizer,
+    llm=llm,
+    qa_prompt=simple_qa_prompt,
+)
+
+# 버전 B: 요약 후 답변
+query_engine_sum = OurCustomQueryEngine(
+    retriever=retriever,
+    response_synthesizer=synthesizer,
+    llm=llm,
+    qa_prompt=short_sum_prompt,
+)
+
+res_answer  = query_engine_answer.query("What's the arts and culture scene in Berlin?")
+res_summary = query_engine_sum.query("What's the arts and culture scene in Berlin?")
+
+print(res_summary)
+print(res_answer)
+```
+
+**`response_mode="compact"`** — 여러 Node의 텍스트를 LLM 컨텍스트 한도 내에서 최대한 압축해 하나의 프롬프트에 담는 방식이다.
+
+---
+
+### 2.3 `Refine_RAG` — 개선된 프롬프트 설계
+
+구조화된 시스템 프롬프트와 명확한 지시문으로 답변 품질을 높인 최종 RAG 클래스다.
+
+```python
+class Refine_RAG:
+
+    def retrieve(self, query: str):
+        """Retriever와 Query Engine을 동시에 실행해 두 결과를 모두 반환."""
+        ret     = retriever.retrieve(query)    # 원본 Node 청크 목록
+        results = query_engine.query(query)    # 중간 요약/답변 문자열
+        return ret, results
+
+    def generate_response(self, query: str, context_str) -> str:
+        """구조화된 프롬프트로 LLM에게 최종 답변 생성 요청."""
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. Answer as concisely as possible.",
+            },
+            {
+                "role": "user",
+                "content": f"""
+###Instruction
+Please answer the following question based on the provided context.
+Your answer should be short and concise.
+Basically, you have to answer the question based on the provided context.
+But you can use your parametrized knowledge when the provided context was wrong
+or unrelated to the question.
+When you generate the answer, you should explain the reason why you deduced
+such an answer from the context.
+
+### Question
+{query}
+
+### Provided Context
+{context_str}
+
+### Answer
+
+
+### Reason
+                """
+            }
+        ]
+
+        response = oai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            temperature=0,
+            messages=messages,
+        )
+
+        return response.choices[0].message.content
+
+    def query(self, query: str) -> str:
+        """전체 파이프라인: retrieve → generate."""
+        ret, context_str = self.retrieve(query)
+        completion = self.generate_response(query, context_str)
+        return completion
+
+refine_rag = Refine_RAG()
+
+# 사용 예시
+sample_question = "City council of Suwon addressed illegal dumping of household waste in what way?"
+answer = refine_rag.query(sample_question)
+print(answer)
+```
+
+**`RAG_from_scratch` vs `Refine_RAG` 비교:**
+
+| 항목 | RAG_from_scratch | Refine_RAG |
+|---|---|---|
+| 시스템 프롬프트 | 없음 | 있음 (`concisely` 지시) |
+| 프롬프트 구조 | 단순 컨텍스트 삽입 | `###Instruction / ###Question / ###Context / ###Answer / ###Reason` 분리 |
+| Retriever 반환 | query_engine 결과만 | raw Node 목록 + query_engine 결과 동시 반환 |
+| 답변 형식 | 자유 형식 | Answer + Reason 구조 강제 |
+
+---
+
+### 2.4 추가 최적화 요소
+
+#### Temperature & Top-p 조절
+
+```python
+response = oai_client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    temperature=0,   # 0에 가까울수록 결정론적, 1에 가까울수록 창의적
+    top_p=1.0,       # 누적 확률 임계값. 낮출수록 고확률 토큰만 사용
+    messages=messages,
+)
+```
+
+| 파라미터 | 범위 | 권장값 (RAG) | 설명 |
+|---|---|---|---|
+| `temperature` | 0.0 ~ 2.0 | 0 ~ 0.3 | 낮을수록 일관성 있는 답변 |
+| `top_p` | 0.0 ~ 1.0 | 0.9 ~ 1.0 | 낮을수록 어휘 다양성 감소 |
+
+#### Embedding 모델 교체
+
+```python
+from llama_index.core import Settings
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+# 옵션 1: OpenAI 임베딩 (글로벌 설정)
+Settings.embed_model = OpenAIEmbedding()
+
+# 옵션 2: HuggingFace 로컬 모델 (비용 없음, 오프라인 가능)
+Settings.embed_model = HuggingFaceEmbedding(
+    model_name="BAAI/bge-small-en-v1.5"
+)
+
+# 옵션 3: 특정 인덱스에만 적용
+embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
+```
+
+**임베딩 차원과 성능 트레이드오프:**
+
+```
+차원 높음 ─── 표현력 ↑, 계산 비용 ↑, 희소성(차원의 저주) 위험
+차원 낮음 ─── 계산 효율 ↑, 표현력 ↓, 오버피팅 감소
+```
+
+---
+
+## 전체 파이프라인 요약
+
+```
+[외부 데이터 소스]
+   WikipediaReader.load_data(city_names)
+          │
+          ▼ Document 리스트
+[청킹 & 임베딩]
+   SentenceSplitter(chunk_size, chunk_overlap)
+   VectorStoreIndex.from_documents(documents, transformations=[splitter])
+          │
+          ▼ VectorStoreIndex (벡터 DB)
+[검색 레이어]
+   index.as_retriever(similarity_top_k=k)
+          │ 질의 입력 → 유사 Node 반환
+          ▼
+[생성 레이어]
+   OurCustomQueryEngine / Refine_RAG.generate_response()
+   (Context + Query → LLM → 최종 답변)
+          │
+          ▼
+[최종 답변]
+```
+
+**성능에 영향을 미치는 주요 설정값 정리:**
+
+| 설정 | 관련 코드 | 영향 |
+|---|---|---|
+| `chunk_size` | `SentenceSplitter(chunk_size=N)` | 검색 정밀도 vs. 문맥 완성도 |
+| `chunk_overlap` | `SentenceSplitter(chunk_overlap=N)` | 청크 경계에서의 정보 연속성 |
+| `similarity_top_k` | `as_retriever(similarity_top_k=k)` | 검색 범위 (많을수록 노이즈 증가 가능) |
+| `temperature` | `chat.completions.create(temperature=T)` | 답변 일관성 vs. 창의성 |
+| `qa_prompt` | `PromptTemplate(...)` | 답변 스타일 및 정확도 |
+| `embed_model` | `Settings.embed_model = ...` | 검색 품질의 근본적 기반 |
+
+---
+
+> 📌 **학습 포인트**  
+> RAG는 단순히 "검색 + 생성"이 아니라, **청킹 전략 → 임베딩 선택 → 검색 설정 → 프롬프트 설계** 전 단계가 최종 품질에 영향을 미친다. 각 단계를 독립적으로 실험하며 최적 조합을 찾는 것이 실무의 핵심이다.
