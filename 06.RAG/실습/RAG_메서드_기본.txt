@@ -1,0 +1,204 @@
+1. data loading
+
+documents = SimpleDirectoryReader("data").load_data()
+----------------------------------------------------------------------------------------------------------------------
+2. index 생성
+
+index = VectorStoreIndex.from_documents(documents)
+----------------------------------------------------------------------------------------------------------------------
+3. Node 분할
+
+parser = SentenceSplitter(chunk_size=1024, chunk_overlap=200)
+nodes = parser.get_nodes_from_documents(documents)
+
+print(len(nodes))          # 22 (기본 설정 기준)
+print(nodes[0].text)       # 첫 번째 청크 텍스트
+print(nodes[1].text)       # 두 번째 청크 텍스트 (overlap 부분 포함)
+print(len(nodes[0].text))  # 문자 수 (토큰 수와 다름!)
+----------------------------------------------------------------------------------------------------------------------
+4. index 생성 시 chunk param 커스터마이징
+
+text_splitter = SentenceSplitter(chunk_size=200, chunk_overlap=50)
+
+index = VectorStoreIndex.from_documents(
+    documents=documents,
+    transformations=[text_splitter]
+)
+----------------------------------------------------------------------------------------------------------------------
+5. tokenizer로 실제 토큰 수 확인
+
+import tiktoken
+
+# SentenceSplitter의 기본 토크나이저 (gpt-3.5-turbo용)
+tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
+
+encoded_text = tokenizer.encode(nodes[0].text)
+print(f"토큰 수: {len(encoded_text)}")   # ≈ chunk_size와 유사 (메타데이터 포함 계산)
+
+decoded_text = tokenizer.decode(encoded_text)
+print(f"복원 텍스트:\n{decoded_text}")
+----------------------------------------------------------------------------------------------------------------------
+6. Query Engine - index.as_query_engine()
+
+# 인덱스에서 Query Engine 직접 생성
+query_engine = index.as_query_engine()
+
+response = query_engine.query("What is the first programs the author tried writing?")
+print(response)
+----------------------------------------------------------------------------------------------------------------------
+7. Retriever - index.as_retriever()
+
+retriever = index.as_retriever()
+
+# 쿼리와 유사한 Node를 벡터 검색으로 가져옴
+ret_passages = retriever.retrieve("Who is the author?")
+
+for i, passage in enumerate(ret_passages):
+    print(f"### Passage {i}\n", passage.text)
+
+# 검색된 모든 텍스트를 하나로 합치기
+passages_text = ""
+for passage in ret_passages:
+    passages_text += passage.text
+----------------------------------------------------------------------------------------------------------------------
+8. Database 관리 
+
+8.1. Insert
+
+# 인덱스에 삽입
+index.insert(docu)
+
+# 새 Query Engine 생성 (인덱스 갱신 반영)
+new_query_engine = index.as_query_engine()
+
+res = new_query_engine.query(question)
+
+>>>>>>>>
+
+8.2. Update
+8.2.1. update_ref_doc (단일 document 업데이트)
+
+# 동일 id_의 데이터를 업데이트 (기존 docstore도 삭제)
+index.update_ref_doc(
+    docu,
+    update_kwargs={"delete_kwargs": {"delete_from_docstore": True}}
+)
+
+query_engine_v2 = index.as_query_engine()
+print(query_engine_v2.query(question))
+
+8.2.2. refresh_ref_docs (여러 documents 일괄 갱신)
+
+# 리스트로 전달 → 동일 id면 업데이트, 없으면 삽입
+output = index.refresh_ref_docs([docu])
+print(output)  # [True] → True: 실제로 갱신됨, False: 변경 없음
+
+query_engine_v3 = index.as_query_engine()
+print(query_engine_v3.query(question))
+
+>>>>>>>>
+
+8.3. Delete
+
+doc_id = docu.doc_id
+print(doc_id)  # "new_doc_id"
+
+# 인덱스 및 docstore에서 삭제
+index.delete_ref_doc(doc_id, delete_from_docstore=True)
+
+# 삭제 후 Query Engine 재생성
+query_engine_v4 = index.as_query_engine()
+print(query_engine_v4.query(question))
+----------------------------------------------------------------------------------------------------------------------
+9. Query Engine
+
+9.1. Standard Query Engine
+
+from llama_index.core.query_engine import CustomQueryEngine
+from llama_index.core.retrievers import BaseRetriever
+from llama_index.core.response_synthesizers import BaseSynthesizer
+from llama_index.core import get_response_synthesizer
+
+class StandardQueryEngine(CustomQueryEngine):
+    retriever: BaseRetriever
+    response_synthesizer: BaseSynthesizer
+
+    def custom_query(self, query_str: str):
+        # Step 1: 관련 Node 검색
+        nodes = self.retriever.retrieve(query_str)
+        # Step 2: Node + 질문 → LLM → 답변
+        response_obj = self.response_synthesizer.synthesize(query_str, nodes)
+        return response_obj
+
+# 사용법
+retriever = index.as_retriever()
+synthesizer = get_response_synthesizer(response_mode="compact")
+
+query_engine = StandardQueryEngine(
+    retriever=retriever,
+    response_synthesizer=synthesizer
+)
+
+response = query_engine.query("What did the author do growing up?")
+print(str(response))
+
+>>>>>>>>
+
+9.2. Customized Query Engine
+
+from llama_index.core import PromptTemplate
+from llama_index.llms.openai import OpenAI
+
+simple_qa_prompt = PromptTemplate(
+    "Context information is below.\n"
+    "---------------------\n"
+    "{context_str}\n"
+    "---------------------\n"
+    "Given the context information and not prior knowledge, "
+    "answer the query.\n"
+    "Query: {query_str}\n"
+    "Answer: "
+)   # 기본 QA 프롬프트
+
+short_sum_prompt = PromptTemplate(
+    "Context information is below.\n"
+    "---------------------\n"
+    "{context_str}\n"
+    "---------------------\n"
+    "Given the context information and not prior knowledge, "
+    "give the summary of context, less than 20 words.\n"
+    "Query: {query_str}\n"
+    "Summary: "
+)  # 짧은 요약 프롬프트
+
+class OurCustomQueryEngine(CustomQueryEngine):
+    retriever: BaseRetriever
+    response_synthesizer: BaseSynthesizer
+    llm: OpenAI
+    qa_prompt: PromptTemplate = simple_qa_prompt  # 기본값
+
+    def custom_query(self, query_str: str):
+        # Step 1: 관련 Node 검색
+        nodes = self.retriever.retrieve(query_str)
+
+        # Step 2: 검색된 Node 텍스트를 하나로 합치기
+        context_str = "\n\n".join([n.node.get_content() for n in nodes])
+
+        # Step 3: 커스텀 프롬프트로 LLM 호출
+        response = self.llm.complete(
+            self.qa_prompt.format(context_str=context_str, query_str=query_str)
+        )
+        return str(response)
+
+# 사용법
+llm = OpenAI(model="gpt-3.5-turbo")
+
+query_engine_custom = OurCustomQueryEngine(
+    retriever=retriever,
+    response_synthesizer=synthesizer,
+    llm=llm,
+    qa_prompt=simple_qa_prompt,   # 또는 short_sum_prompt로 변경 가능
+)
+
+response = query_engine_custom.query("What did the author do growing up?")
+print(response)
