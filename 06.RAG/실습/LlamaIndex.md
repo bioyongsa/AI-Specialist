@@ -1,4 +1,4 @@
-# 📘 LlamaIndex RAG
+# 📘 LlamaIndex
 
 > **기반 실습**: `1__Llama_index.ipynb`  
 > **핵심 데이터**: Paul Graham Essay (`paul_graham_essay.txt`)  
