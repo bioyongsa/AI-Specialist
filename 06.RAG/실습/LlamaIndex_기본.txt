@@ -1,3 +1,16 @@
+[Raw Files]
+    ↓  SimpleDirectoryReader
+[Documents]          ← 파일 단위 객체
+    ↓  VectorStoreIndex.from_documents()
+    ├─ SentenceSplitter  →  [Nodes]       ← 청크 단위 객체
+    └─ Embedding Model   →  [Vectors]     ← 벡터 저장소
+[VectorStoreIndex]
+    ↓  as_query_engine() / as_retriever()
+[Query Engine]
+    ├─ Retriever      →  관련 Nodes 검색 (벡터 유사도)
+    └─ Synthesizer    →  LLM으로 최종 답변 생성
+
+
 1. data loading
 
 documents = SimpleDirectoryReader("data").load_data()

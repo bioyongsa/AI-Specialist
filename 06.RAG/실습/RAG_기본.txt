@@ -1,5 +1,3 @@
-Part I - Prototype RAG 구축
-
 1. data loading - WikipediaReader
 
 # 2. 질문과 관련된 도시가 목록에 없으면 추가
@@ -14,6 +12,17 @@ documents = reader.load_data(city_names, auto_suggest=False)
 2. VectorStoreIndex 생성 - VectorStoreIndex.from_documents
 
 index = VectorStoreIndex.from_documents(documents)
+
+[Document 리스트]
+      │
+      ▼ 1) SentenceSplitter로 분할
+[Node 리스트]  (각 Node = 하나의 텍스트 청크)
+      │
+      ▼ 2) Embedding 모델로 벡터화
+[벡터 리스트]  (각 Node → 고차원 float 벡터)
+      │
+      ▼ 3) VectorStore에 저장 (기본: 인메모리)
+[VectorStoreIndex]  ← 검색 가능한 상태
 ----------------------------------------------------------------------------------------------------------------------
 3. Query Engine
 
