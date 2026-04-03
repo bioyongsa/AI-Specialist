@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IR Measures Animation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 24px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      z-index: 100;
+    }
+
+    .nav button {
+      padding: 10px 24px;
+      border: 2px solid #3b82f6;
+      background: transparent;
+      color: #60a5fa;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav button:hover {
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    .nav button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .nav .indicator {
+      color: #94a3b8;
+      font-size: 14px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    /* Scene container */
+    .scene-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 60px 100px;
+    }
+
+    .scene {
+      display: none;
+      width: 100%;
+      max-width: 1200px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .scene.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 1;
+    }
+
+    /* Animated elements */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .fade-in.dimmed {
+      opacity: 0.4 !important;
+    }
+
+    /* Typography */
+    .title {
+      font-size: 56px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+
+    .subtitle {
+      font-size: 28px;
+      color: #94a3b8;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .accent-blue { color: #3b82f6; }
+    .accent-light { color: #60a5fa; }
+    .accent-purple { color: #a855f7; }
+    .accent-green { color: #22c55e; }
+    .accent-yellow { color: #f59e0b; }
+    .accent-red { color: #ef4444; }
+
+    /* Document row */
+    .doc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 22px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 2px solid transparent;
+      width: 360px;
+      transition: all 0.3s;
+    }
+
+    .doc-row.highlight-green {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: #22c55e;
+    }
+
+    .doc-row.highlight-red {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+    }
+
+    .doc-row .rank {
+      font-size: 24px;
+      font-weight: 700;
+      color: #94a3b8;
+      width: 32px;
+      text-align: center;
+    }
+
+    .doc-row .dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.relevant { background: #22c55e; }
+    .dot.irrelevant { background: #64748b; }
+
+    .doc-row .doc-label {
+      font-size: 22px;
+      font-weight: 500;
+    }
+
+    /* Formula box */
+    .formula-box {
+      background: rgba(255,255,255,0.04);
+      border: 2px solid #3b82f6;
+      border-radius: 14px;
+      padding: 20px 32px;
+      text-align: center;
+      min-width: 420px;
+    }
+
+    .formula-box .formula-label {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .formula-box .formula-text {
+      font-size: 26px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .formula-box .formula-result {
+      font-size: 36px;
+      font-weight: 800;
+      margin-top: 12px;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.4s ease;
+    }
+
+    .formula-box .formula-result.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Layout helpers */
+    .row {
+      display: flex;
+      gap: 50px;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .note {
+      font-size: 20px;
+      color: #94a3b8;
+      line-height: 1.6;
+      padding: 14px 22px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      max-width: 460px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-size: 26px;
+      font-weight: 600;
+      border: 2px solid;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 22px;
+    }
+
+    /* K indicator */
+    .k-bracket {
+      position: relative;
+      margin-top: 8px;
+    }
+
+    .k-bracket::before {
+      content: '';
+      position: absolute;
+      top: -196px;
+      left: -20px;
+      right: -20px;
+      height: 190px;
+      border: 3px dashed #f59e0b;
+      border-radius: 14px;
+      pointer-events: none;
+    }
+
+    .k-label {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #f59e0b;
+      margin-top: 6px;
+    }
+
+    /* Scenario cards (scene 5) */
+    .scenarios {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      margin-bottom: 28px;
+    }
+
+    .scenario-card {
+      flex: 1;
+      background: rgba(255,255,255,0.03);
+      border-radius: 18px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .scenario-card .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f59e0b;
+      text-align: center;
+    }
+
+    .mini-docs {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .mini-doc {
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 600;
+      border: 2px solid;
+    }
+
+    .mini-doc.rel {
+      background: rgba(34,197,94,0.2);
+      border-color: #22c55e;
+      color: #22c55e;
+    }
+
+    .mini-doc.irr {
+      background: rgba(100,116,139,0.2);
+      border-color: #64748b;
+      color: #64748b;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .metric-row .m-name { font-weight: 600; }
+    .metric-row .m-verdict { font-size: 15px; color: #94a3b8; }
+
+    .problem-box {
+      font-size: 17px;
+      color: #ef4444;
+      text-align: center;
+      padding: 10px 12px;
+      background: rgba(239,68,68,0.1);
+      border-radius: 8px;
+      border: 1px solid #ef4444;
+      font-weight: 600;
+    }
+
+    .problem-box.good {
+      color: #22c55e;
+      background: rgba(34,197,94,0.1);
+      border-color: #22c55e;
+    }
+
+    /* Summary metric cards */
+    .metric-cards {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 40px;
+    }
+
+    .metric-card {
+      background: rgba(255,255,255,0.04);
+      border: 2px solid;
+      border-radius: 14px;
+      padding: 18px 24px;
+      width: 260px;
+      text-align: center;
+    }
+
+    .metric-card .mc-name {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .metric-card .mc-question {
+      font-size: 17px;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+
+    .metric-card .mc-formula {
+      font-size: 15px;
+      font-family: monospace;
+      background: rgba(0,0,0,0.3);
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .conclusion-box {
+      padding: 20px 40px;
+      border-radius: 14px;
+      background: rgba(59,130,246,0.1);
+      border: 2px solid #3b82f6;
+      font-size: 26px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .query-badge {
+      font-size: 26px;
+      color: #fbbf24;
+      padding: 10px 24px;
+      background: rgba(251,191,36,0.1);
+      border-radius: 10px;
+      border: 1px solid #fbbf24;
+      margin-bottom: 32px;
+    }
+
+    .info-block {
+      font-size: 22px;
+      color: #94a3b8;
+      line-height: 1.6;
+      max-width: 420px;
+    }
+
+    .info-block b { color: #f1f5f9; }
+  </style>
+</head>
+<body>
+
+<div class="scene-container">
+
+  <!-- Scene 1: Intro -->
+  <div class="scene" id="scene-0">
+    <div class="title fade-in" data-delay="0">
+      Information Retrieval<br>
+      <span class="accent-blue">평가 지표</span>
+    </div>
+    <div class="subtitle fade-in" data-delay="300">
+      검색 시스템의 성능을 어떻게 측정할까?
+    </div>
+    <div class="row fade-in" data-delay="600" style="gap: 40px;">
+      <div class="badge accent-light" style="border-color: #60a5fa;">Success / Reciprocal Rank</div>
+      <div class="badge accent-purple" style="border-color: #a855f7;">Precision / Recall</div>
+    </div>
+  </div>
+
+  <!-- Scene 2: Setup -->
+  <div class="scene" id="scene-1">
+    <div class="title fade-in" data-delay="0" style="font-size: 48px;">예시 설정</div>
+    <div class="query-badge fade-in" data-delay="200">쿼리 q: "머신러닝 기초"</div>
+    <div class="row">
+      <div class="col">
+        <div class="fade-in" data-delay="300" style="font-size: 24px; color: #94a3b8; font-weight: 600;">
+          랭킹 결과 D = [doc₁, ..., doc₆]
+        </div>
+        <div class="doc-list" id="setup-docs"></div>
+        <div class="k-bracket fade-in" data-delay="1200">
+          <div class="k-label">← K = 3 (상위 3개)</div>
+        </div>
+      </div>
+      <div class="col fade-in" data-delay="500">
+        <div class="legend">
+          <div class="legend-item"><div class="dot relevant"></div><span class="accent-green">관련 문서 (Relevant)</span></div>
+          <div class="legend-item"><div class="dot irrelevant"></div><span style="color: #64748b;">비관련 문서</span></div>
+        </div>
+        <div class="info-block" style="margin-top: 16px;">
+          전체 관련 문서: <b class="accent-green">3개</b><br>(Doc B, Doc D, Doc E)
+        </div>
+        <div class="info-block fade-in" data-delay="1200" style="color: #f59e0b;">
+          첫 번째 관련 문서 위치:<br>
+          <b style="font-size: 28px; color: #f59e0b;">Rank(q, D) = 2</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 3: Success & RR -->
+  <div class="scene" id="scene-2">
+    <div class="title fade-in accent-light" data-delay="0" style="font-size: 46px;">Success@K & Reciprocal Rank</div>
+    <div class="subtitle fade-in" data-delay="200" style="font-size: 24px;">
+      "첫 번째 관련 문서를 얼마나 빨리 찾았는가?"
+    </div>
+    <div class="row">
+      <div class="col">
+        <div class="doc-list" id="srr-docs"></div>
+        <div class="fade-in" data-delay="800" style="font-size: 20px; color: #f59e0b; text-align: center; margin-top: 8px;">
+          ↑ 첫 관련 문서 = 위치 2
+        </div>
+      </div>
+      <div class="col">
+        <div class="formula-box fade-in" data-delay="600" style="border-color: #22c55e;">
+          <div class="formula-label accent-green">Success@3</div>
+          <div class="formula-text">Rank(q, D) = 2 ≤ 3 → <span class="accent-green">1</span></div>
+          <div class="formula-result accent-green" data-result-delay="900">= 1 ✓</div>
+        </div>
+        <div class="formula-box fade-in" data-delay="1200" style="border-color: #60a5fa;">
+          <div class="formula-label accent-light">RR@3</div>
+          <div class="formula-text">1 / Rank(q, D) = 1 / 2</div>
+          <div class="formula-result accent-light" data-result-delay="1500">= 0.5</div>
+        </div>
+        <div class="note fade-in" data-delay="1800">
+          💡 <b class="accent-light">MRR@K</b> = 여러 쿼리에 대한 RR@K의 평균<br>
+          → 시스템 전체의 "첫 관련 문서 도달 속도" 측정
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 4: Precision & Recall -->
+  <div class="scene" id="scene-3">
+    <div class="title fade-in accent-purple" data-delay="0" style="font-size: 46px;">Precision@K & Recall@K</div>
+    <div class="subtitle fade-in" data-delay="200" style="font-size: 24px;">
+      "상위 K개 중 관련 문서 비율" vs "전체 관련 문서 중 찾은 비율"
+    </div>
+    <div class="row">
+      <div class="col">
+        <div class="doc-list" id="pr-docs"></div>
+        <div class="fade-in" data-delay="800" style="font-size: 18px; color: #f59e0b; text-align: center; margin-top: 8px; line-height: 1.5;">
+          Ret(D, 3) = { Doc A, Doc B, Doc C }<br>
+          Rel(D, q) = { Doc B, Doc D, Doc E }
+        </div>
+      </div>
+      <div class="col">
+        <div class="formula-box fade-in" data-delay="600" style="border-color: #a855f7;">
+          <div class="formula-label accent-purple">Precision@3</div>
+          <div class="formula-text">|Ret ∩ Rel| / K = |{Doc B}| / 3 = 1/3</div>
+          <div class="formula-result accent-purple" data-result-delay="900">= 0.33</div>
+        </div>
+        <div class="formula-box fade-in" data-delay="1200" style="border-color: #f59e0b;">
+          <div class="formula-label accent-yellow">Recall@3</div>
+          <div class="formula-text">|Ret ∩ Rel| / |Rel| = 1 / 3</div>
+          <div class="formula-result accent-yellow" data-result-delay="1500">= 0.33</div>
+        </div>
+        <div class="note fade-in" data-delay="1800">
+          💡 <b class="accent-purple">Precision</b> = 반환 결과의 정확도<br>
+          💡 <b class="accent-yellow">Recall</b> = 관련 문서 발견 완성도
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 5: Why Both -->
+  <div class="scene" id="scene-4">
+    <div class="title fade-in" data-delay="0" style="font-size: 46px;">
+      왜 <span class="accent-light">둘 다</span> 필요한가?
+    </div>
+    <div class="scenarios">
+      <!-- Scenario A -->
+      <div class="scenario-card fade-in" data-delay="200">
+        <div class="card-title">시나리오 A: RR만 좋은 경우</div>
+        <div class="mini-docs">
+          <div class="mini-doc rel">1</div>
+          <div class="mini-doc irr">2</div>
+          <div class="mini-doc irr">3</div>
+          <div class="mini-doc irr">4</div>
+          <div class="mini-doc irr">5</div>
+        </div>
+        <div class="metric-row"><span class="m-name accent-green">Success@5</span><span>1.0 <span class="m-verdict">완벽!</span></span></div>
+        <div class="metric-row"><span class="m-name accent-light">RR@5</span><span>1.0 <span class="m-verdict">완벽!</span></span></div>
+        <div class="metric-row"><span class="m-name accent-red">Prec@5</span><span>0.2 <span class="m-verdict">낮음</span></span></div>
+        <div class="metric-row"><span class="m-name accent-red">Recall@5</span><span>0.1 <span class="m-verdict">낮음</span></span></div>
+        <div class="problem-box">첫 문서만 맞고 나머지는 쓸모없음!</div>
+      </div>
+      <!-- Scenario B -->
+      <div class="scenario-card fade-in" data-delay="600">
+        <div class="card-title">시나리오 B: Precision만 좋은 경우</div>
+        <div class="mini-docs">
+          <div class="mini-doc irr">1</div>
+          <div class="mini-doc irr">2</div>
+          <div class="mini-doc rel">3</div>
+          <div class="mini-doc rel">4</div>
+          <div class="mini-doc rel">5</div>
+        </div>
+        <div class="metric-row"><span class="m-name accent-green">Success@5</span><span>1.0 <span class="m-verdict">완벽!</span></span></div>
+        <div class="metric-row"><span class="m-name accent-yellow">RR@5</span><span>0.33 <span class="m-verdict">보통</span></span></div>
+        <div class="metric-row"><span class="m-name accent-green">Prec@5</span><span>0.6 <span class="m-verdict">좋음</span></span></div>
+        <div class="metric-row"><span class="m-name accent-green">Recall@5</span><span>0.6 <span class="m-verdict">좋음</span></span></div>
+        <div class="problem-box">관련 문서가 뒤에 몰려있음 → UX↓</div>
+      </div>
+      <!-- Scenario C -->
+      <div class="scenario-card fade-in" data-delay="1000">
+        <div class="card-title">시나리오 C: 이상적인 경우 ✨</div>
+        <div class="mini-docs">
+          <div class="mini-doc rel">1</div>
+          <div class="mini-doc rel">2</div>
+          <div class="mini-doc rel">3</div>
+          <div class="mini-doc irr">4</div>
+          <div class="mini-doc irr">5</div>
+        </div>
+        <div class="metric-row"><span class="m-name accent-green">Success@5</span><span>1.0 <span class="m-verdict">완벽!</span></span></div>
+        <div class="metric-row"><span class="m-name accent-green">RR@5</span><span>1.0 <span class="m-verdict">완벽!</span></span></div>
+        <div class="metric-row"><span class="m-name accent-green">Prec@5</span><span>0.6 <span class="m-verdict">좋음</span></span></div>
+        <div class="metric-row"><span class="m-name accent-green">Recall@5</span><span>0.6 <span class="m-verdict">좋음</span></span></div>
+        <div class="problem-box good">모든 지표가 양호!</div>
+      </div>
+    </div>
+    <div class="conclusion-box fade-in" data-delay="1400">
+      <span class="accent-light">Success/RR</span> = 첫 관련 문서의 <span class="accent-yellow">위치 품질</span><br>
+      <span class="accent-purple">Precision/Recall</span> = 전체 결과의 <span class="accent-yellow">양적 품질</span><br>
+      → 두 관점을 함께 봐야 검색 시스템을 정확히 평가할 수 있다!
+    </div>
+  </div>
+
+  <!-- Scene 6: Summary -->
+  <div class="scene" id="scene-5">
+    <div class="title fade-in" data-delay="0" style="font-size: 52px;">요약</div>
+    <div class="metric-cards">
+      <div class="metric-card fade-in" data-delay="200" style="border-color: #22c55e;">
+        <div class="mc-name accent-green">Success@K</div>
+        <div class="mc-question">관련 문서가 있긴 한가?</div>
+        <div class="mc-formula">Rank(q,D) ≤ K → 1, else 0</div>
+      </div>
+      <div class="metric-card fade-in" data-delay="400" style="border-color: #60a5fa;">
+        <div class="mc-name accent-light">RR@K / MRR@K</div>
+        <div class="mc-question">첫 관련 문서가 얼마나 높은가?</div>
+        <div class="mc-formula">1 / Rank(q,D)</div>
+      </div>
+      <div class="metric-card fade-in" data-delay="600" style="border-color: #a855f7;">
+        <div class="mc-name accent-purple">Precision@K</div>
+        <div class="mc-question">반환 결과가 정확한가?</div>
+        <div class="mc-formula">|Ret∩Rel| / K</div>
+      </div>
+      <div class="metric-card fade-in" data-delay="800" style="border-color: #f59e0b;">
+        <div class="mc-name accent-yellow">Recall@K</div>
+        <div class="mc-question">관련 문서를 다 찾았나?</div>
+        <div class="mc-formula">|Ret∩Rel| / |Rel|</div>
+      </div>
+    </div>
+    <div class="conclusion-box fade-in" data-delay="1000">
+      <span class="accent-light">위치 품질</span> +
+      <span class="accent-purple">정확도</span> +
+      <span class="accent-yellow">완성도</span><br>
+      = 종합적인 검색 품질 평가
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+  <button id="btn-prev" onclick="prevScene()">◀ 이전</button>
+  <span class="indicator" id="indicator">1 / 6</span>
+  <button id="btn-next" onclick="nextScene()">다음 ▶</button>
+</div>
+
+<script>
+  const TOTAL_SCENES = 6;
+  let currentScene = 0;
+
+  const docsData = [
+    { label: "Doc A", relevant: false },
+    { label: "Doc B ✓", relevant: true },
+    { label: "Doc C", relevant: false },
+    { label: "Doc D ✓", relevant: true },
+    { label: "Doc E ✓", relevant: true },
+    { label: "Doc F", relevant: false },
+  ];
+
+  // Build document lists for scenes that need them
+  function buildDocList(containerId, options) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = "";
+
+    docsData.forEach(function (doc, i) {
+      const row = document.createElement("div");
+      row.className = "doc-row fade-in";
+      row.setAttribute("data-delay", String(400 + i * 100));
+
+      // Highlights
+      if (options.highlightFirst && i === 1) {
+        row.classList.add("highlight-green");
+      }
+      if (options.highlightTopK && i < 3) {
+        row.classList.add(doc.relevant ? "highlight-green" : "highlight-red");
+      }
+      if (options.dimAfterK && i >= 3) {
+        row.classList.add("dimmed");
+      }
+
+      row.innerHTML =
+        '<div class="rank">' + (i + 1) + "</div>" +
+        '<div class="dot ' + (doc.relevant ? "relevant" : "irrelevant") + '"></div>' +
+        '<div class="doc-label">' + doc.label + "</div>";
+
+      container.appendChild(row);
+    });
+  }
+
+  function showScene(index) {
+    // Hide all scenes
+    document.querySelectorAll(".scene").forEach(function (s) {
+      s.classList.remove("active");
+      // Reset fade-in elements
+      s.querySelectorAll(".fade-in").forEach(function (el) {
+        el.classList.remove("visible");
+      });
+      s.querySelectorAll(".formula-result").forEach(function (el) {
+        el.classList.remove("visible");
+      });
+    });
+
+    // Build doc lists if needed
+    if (index === 1) buildDocList("setup-docs", {});
+    if (index === 2) buildDocList("srr-docs", { highlightFirst: true, dimAfterK: true });
+    if (index === 3) buildDocList("pr-docs", { highlightTopK: true, dimAfterK: true });
+
+    // Show target scene
+    var scene = document.getElementById("scene-" + index);
+    scene.classList.add("active");
+
+    // Animate fade-in elements
+    var fadeEls = scene.querySelectorAll(".fade-in");
+    fadeEls.forEach(function (el) {
+      var delay = parseInt(el.getAttribute("data-delay") || "0", 10);
+      setTimeout(function () {
+        el.classList.add("visible");
+      }, delay);
+    });
+
+    // Animate formula results
+    var resultEls = scene.querySelectorAll(".formula-result");
+    resultEls.forEach(function (el) {
+      var delay = parseInt(el.getAttribute("data-result-delay") || "0", 10);
+      setTimeout(function () {
+        el.classList.add("visible");
+      }, delay);
+    });
+
+    // Update nav
+    document.getElementById("indicator").textContent = (index + 1) + " / " + TOTAL_SCENES;
+    document.getElementById("btn-prev").disabled = index === 0;
+    document.getElementById("btn-next").disabled = index === TOTAL_SCENES - 1;
+  }
+
+  function nextScene() {
+    if (currentScene < TOTAL_SCENES - 1) {
+      currentScene++;
+      showScene(currentScene);
+    }
+  }
+
+  function prevScene() {
+    if (currentScene > 0) {
+      currentScene--;
+      showScene(currentScene);
+    }
+  }
+
+  // Keyboard navigation
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight" || e.key === " ") {
+      e.preventDefault();
+      nextScene();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      prevScene();
+    }
+  });
+
+  // Initialize
+  showScene(0);
+</script>
+
+</body>
+</html>

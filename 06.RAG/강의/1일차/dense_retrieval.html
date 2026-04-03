@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cross-Encoder vs DPR Visualization</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; overflow-x: hidden; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  h1 { text-align: center; font-size: 2rem; margin: 30px 0 10px; color: #f8fafc; }
+  .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 1.05rem; }
+
+  .tab-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; }
+  .tab { padding: 12px 28px; border: 2px solid #334155; border-radius: 10px; cursor: pointer;
+         background: #1e293b; color: #94a3b8; font-size: 1rem; transition: all 0.3s; }
+  .tab.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+  .tab:hover:not(.active) { border-color: #60a5fa; color: #cbd5e1; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Architecture diagrams */
+  .arch-row { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .arch-card { background: #1e293b; border-radius: 16px; padding: 24px; flex: 1; min-width: 340px; max-width: 560px; border: 1px solid #334155; }
+  .arch-card h2 { font-size: 1.3rem; margin-bottom: 16px; text-align: center; }
+  .arch-card h2.cross { color: #f97316; }
+  .arch-card h2.dpr { color: #22d3ee; }
+
+  canvas { display: block; margin: 0 auto; }
+
+  /* Info boxes */
+  .info-box { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #3b82f6; }
+  .info-box h3 { color: #60a5fa; margin-bottom: 8px; }
+  .info-box p, .info-box li { color: #cbd5e1; line-height: 1.7; }
+  .info-box ul { padding-left: 20px; }
+
+  .formula { background: #0f172a; border-radius: 8px; padding: 16px; margin: 12px 0; text-align: center;
+             font-family: 'Times New Roman', serif; font-size: 1.15rem; color: #f1f5f9; border: 1px solid #334155; }
+
+  .highlight-orange { color: #fb923c; font-weight: bold; }
+  .highlight-cyan { color: #22d3ee; font-weight: bold; }
+  .highlight-green { color: #4ade80; font-weight: bold; }
+  .highlight-red { color: #f87171; font-weight: bold; }
+
+  /* Comparison table */
+  .comp-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  .comp-table th, .comp-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid #334155; }
+  .comp-table th { background: #1e293b; color: #60a5fa; font-size: 0.95rem; }
+  .comp-table td { color: #cbd5e1; }
+  .comp-table tr:hover td { background: #1e293b; }
+
+  /* Interactive demo */
+  .demo-area { background: #1e293b; border-radius: 16px; padding: 24px; margin: 20px 0; }
+  .demo-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .demo-controls label { color: #94a3b8; font-size: 0.9rem; }
+  .demo-controls input[type=range] { width: 160px; }
+  .demo-controls .val { color: #60a5fa; font-weight: bold; min-width: 40px; }
+
+  .cost-bars { display: flex; gap: 20px; align-items: flex-end; height: 200px; justify-content: center; margin: 20px 0; }
+  .cost-bar-wrap { text-align: center; }
+  .cost-bar { width: 80px; border-radius: 8px 8px 0 0; transition: height 0.5s; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; color: #fff; font-weight: bold; font-size: 0.85rem; }
+  .cost-bar.cross-bar { background: linear-gradient(to top, #ea580c, #fb923c); }
+  .cost-bar.dpr-bar { background: linear-gradient(to top, #0891b2, #22d3ee); }
+  .cost-label { margin-top: 8px; color: #94a3b8; font-size: 0.85rem; }
+
+  .token-flow { display: flex; gap: 4px; flex-wrap: wrap; margin: 10px 0; }
+  .token { padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; animation: fadeIn 0.3s; }
+  .token.query { background: #166534; color: #4ade80; }
+  .token.doc { background: #1e3a5f; color: #60a5fa; }
+  .token.sep { background: #44403c; color: #a8a29e; }
+  .token.cls { background: #581c87; color: #c084fc; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .step-nav { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
+  .step-btn { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.95rem; }
+  .step-btn.prev { background: #334155; color: #e2e8f0; }
+  .step-btn.next { background: #3b82f6; color: #fff; }
+  .step-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .step-indicator { text-align: center; color: #64748b; margin-bottom: 10px; font-size: 0.9rem; }
+
+  /* Animation canvas */
+  .anim-wrapper { position: relative; background: #0f172a; border-radius: 12px; border: 1px solid #334155; overflow: hidden; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Cross-Encoder vs DPR (Dense Passage Retrieval)</h1>
+  <p class="subtitle">Dense Retrieval에서 두 가지 핵심 아키텍처 비교</p>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab(0)">Architecture</div>
+    <div class="tab" onclick="switchTab(1)">Step-by-Step</div>
+    <div class="tab" onclick="switchTab(2)">Scalability</div>
+    <div class="tab" onclick="switchTab(3)">Loss & Training</div>
+  </div>
+
+  <!-- Panel 0: Architecture -->
+  <div class="panel active" id="panel-0">
+    <div class="arch-row">
+      <div class="arch-card">
+        <h2 class="cross">Cross-Encoder</h2>
+        <div class="anim-wrapper">
+          <canvas id="canvas-cross" width="500" height="380"></canvas>
+        </div>
+        <p style="text-align:center;color:#fb923c;font-weight:600;margin-top:8px;">Incredibly rich, but won't scale!</p>
+      </div>
+      <div class="arch-card">
+        <h2 class="dpr">DPR (Dual Encoder)</h2>
+        <div class="anim-wrapper">
+          <canvas id="canvas-dpr" width="500" height="380"></canvas>
+        </div>
+        <p style="text-align:center;color:#22d3ee;font-weight:600;margin-top:8px;">Highly scalable, but limited interactions!</p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>Core Difference</h3>
+      <p><span class="highlight-orange">Cross-Encoder</span>: Query와 Document를 <strong>함께 concatenate</strong>해서 하나의 BERT에 입력.
+        모든 layer에서 query-document 간 full attention이 발생하여 매우 풍부한 interaction을 포착.</p>
+      <p style="margin-top:8px;"><span class="highlight-cyan">DPR</span>: Query와 Document를 <strong>별도의 encoder</strong>로 각각 독립적으로 encoding.
+        최종 representation의 dot product로만 유사도를 계산. Document embedding을 미리 계산(pre-compute)해 둘 수 있어 확장성이 뛰어남.</p>
+    </div>
+  </div>
+
+  <!-- Panel 1: Step by Step -->
+  <div class="panel" id="panel-1">
+    <div class="step-indicator" id="step-indicator">Step 1 / 6</div>
+    <div class="demo-area" id="step-content"></div>
+    <div class="step-nav">
+      <button class="step-btn prev" id="btn-prev" onclick="stepNav(-1)">&#8592; Previous</button>
+      <button class="step-btn next" id="btn-next" onclick="stepNav(1)">Next &#8594;</button>
+    </div>
+  </div>
+
+  <!-- Panel 2: Scalability -->
+  <div class="panel" id="panel-2">
+    <div class="demo-area">
+      <h3 style="color:#60a5fa;margin-bottom:16px;">Inference Cost Comparison</h3>
+      <div class="demo-controls">
+        <label>Corpus Size (documents):</label>
+        <input type="range" id="slider-docs" min="100" max="10000000" value="10000" step="100" oninput="updateCost()">
+        <span class="val" id="val-docs">10,000</span>
+      </div>
+      <div class="demo-controls">
+        <label>Number of Queries:</label>
+        <input type="range" id="slider-queries" min="1" max="1000" value="10" oninput="updateCost()">
+        <span class="val" id="val-queries">10</span>
+      </div>
+
+      <div class="cost-bars">
+        <div class="cost-bar-wrap">
+          <div class="cost-bar cross-bar" id="bar-cross" style="height:20px;"></div>
+          <div class="cost-label">Cross-Encoder</div>
+          <div class="cost-label" id="cost-cross-val" style="color:#fb923c;font-weight:bold;">-</div>
+        </div>
+        <div class="cost-bar-wrap">
+          <div class="cost-bar dpr-bar" id="bar-dpr" style="height:20px;"></div>
+          <div class="cost-label">DPR</div>
+          <div class="cost-label" id="cost-dpr-val" style="color:#22d3ee;font-weight:bold;">-</div>
+        </div>
+      </div>
+
+      <div class="info-box" style="border-left-color:#f97316;">
+        <h3>Why Cross-Encoder doesn't scale</h3>
+        <p><span class="highlight-orange">Cross-Encoder</span>는 각 (query, document) 쌍마다 BERT forward pass를 수행해야 합니다.</p>
+        <p>Q개의 query, D개의 document가 있으면 총 <strong>Q x D</strong>번의 inference가 필요합니다.</p>
+        <p style="margin-top:8px;"><span class="highlight-cyan">DPR</span>은 document embedding을 <strong>한 번만 계산</strong>하면 됩니다.
+          이후 query가 들어올 때마다 query encoding (1회) + dot product (매우 빠름)만 필요합니다.
+          총 비용: <strong>D + Q</strong>번의 encoding + 빠른 벡터 검색.</p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>Real-world Implication</h3>
+      <table class="comp-table">
+        <tr><th>Aspect</th><th class="highlight-orange">Cross-Encoder</th><th class="highlight-cyan">DPR</th></tr>
+        <tr><td>Inference complexity</td><td>O(Q x D)</td><td>O(Q + D)</td></tr>
+        <tr><td>Pre-compute docs?</td><td>No (query-dependent)</td><td>Yes (independent encoding)</td></tr>
+        <tr><td>FAISS/ANN index</td><td>Not possible</td><td>Fully compatible</td></tr>
+        <tr><td>Retrieval quality</td><td>Very high (full attention)</td><td>Good (dot product only)</td></tr>
+        <tr><td>Typical use</td><td>Re-ranker (top-k)</td><td>First-stage retrieval</td></tr>
+        <tr><td>Wikipedia-scale (21M docs)</td><td>Days per query</td><td>Milliseconds per query</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Panel 3: Loss -->
+  <div class="panel" id="panel-3">
+    <div class="info-box">
+      <h3>Training Data Format</h3>
+      <p>Both models use the same training data format:</p>
+      <div class="formula">&#10216; q<sub>i</sub>, doc<sub>i</sub><sup>+</sup>, {doc<sub>i,k</sub><sup>-</sup>} &#10217;</div>
+      <ul style="margin-top:12px;">
+        <li><span class="highlight-green">q<sub>i</sub></span>: i번째 query</li>
+        <li><span class="highlight-green">doc<sub>i</sub><sup>+</sup></span>: query에 대한 <strong>positive (relevant)</strong> document</li>
+        <li><span class="highlight-red">{doc<sub>i,k</sub><sup>-</sup>}</span>: query에 대한 <strong>negative (irrelevant)</strong> documents 집합</li>
+      </ul>
+    </div>
+
+    <div class="arch-row">
+      <div class="arch-card">
+        <h2 class="cross">Cross-Encoder Scoring</h2>
+        <div class="formula">Rep(q, doc) = Dense(Enc([q; doc])<sub>N,0</sub>)</div>
+        <p style="color:#cbd5e1;margin-top:12px;">Query와 document를 <strong>[CLS] q [SEP] doc [SEP]</strong>로 concatenate하여 단일 BERT에 입력.
+        N번째 layer의 [CLS] token representation을 Dense layer에 통과시켜 relevance score를 산출.</p>
+        <div style="margin-top:16px;">
+          <div class="token-flow">
+            <span class="token cls">[CLS]</span>
+            <span class="token query">What</span>
+            <span class="token query">is</span>
+            <span class="token query">Python</span>
+            <span class="token query">?</span>
+            <span class="token sep">[SEP]</span>
+            <span class="token doc">Python</span>
+            <span class="token doc">is</span>
+            <span class="token doc">a</span>
+            <span class="token doc">programming</span>
+            <span class="token doc">language</span>
+            <span class="token sep">[SEP]</span>
+          </div>
+          <p style="text-align:center;margin-top:8px;font-size:0.85rem;color:#94a3b8;">&#8595; Single BERT Encoder &#8595; [CLS] &#8594; Dense &#8594; Score</p>
+        </div>
+      </div>
+
+      <div class="arch-card">
+        <h2 class="dpr">DPR Scoring</h2>
+        <div class="formula">Sim(q, doc) = EncQ(q)<sub>N,0</sub><sup>T</sup> EncD(doc)<sub>N,0</sub></div>
+        <p style="color:#cbd5e1;margin-top:12px;">Query와 document를 <strong>각각 별도의 BERT encoder</strong>에 입력.
+        각 encoder의 [CLS] token representation을 추출하고, 두 벡터의 <strong>dot product</strong>로 유사도 계산.</p>
+        <div style="margin-top:16px;display:flex;gap:16px;">
+          <div style="flex:1;">
+            <p style="color:#4ade80;font-size:0.85rem;margin-bottom:4px;">Query Encoder:</p>
+            <div class="token-flow">
+              <span class="token cls">[CLS]</span>
+              <span class="token query">What</span>
+              <span class="token query">is</span>
+              <span class="token query">Python</span>
+              <span class="token query">?</span>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <p style="color:#60a5fa;font-size:0.85rem;margin-bottom:4px;">Doc Encoder:</p>
+            <div class="token-flow">
+              <span class="token cls">[CLS]</span>
+              <span class="token doc">Python</span>
+              <span class="token doc">is</span>
+              <span class="token doc">a</span>
+              <span class="token doc">lang</span>
+            </div>
+          </div>
+        </div>
+        <p style="text-align:center;margin-top:10px;font-size:0.85rem;color:#94a3b8;">vec_q &middot; vec_d = similarity score</p>
+      </div>
+    </div>
+
+    <div class="info-box" style="border-left-color:#a78bfa;">
+      <h3>Shared Loss Function (Negative Log-Likelihood)</h3>
+      <div class="formula" style="font-size:1.1rem;">
+        L = - log &nbsp; exp(score(q<sub>i</sub>, doc<sub>i</sub><sup>+</sup>)) &frasl;
+        [ exp(score(q<sub>i</sub>, doc<sub>i</sub><sup>+</sup>)) + &Sigma;<sub>j=1..n</sub> exp(score(q<sub>i</sub>, doc<sub>i,j</sub><sup>-</sup>)) ]
+      </div>
+      <p style="margin-top:12px;">이 loss는 본질적으로 <strong>softmax cross-entropy</strong>입니다:</p>
+      <ul>
+        <li>Positive document의 score를 <span class="highlight-green">높이고</span></li>
+        <li>Negative document들의 score를 <span class="highlight-red">낮추도록</span> 학습</li>
+        <li>Cross-Encoder에서 score = <code>Rep(q, doc)</code>, DPR에서 score = <code>Sim(q, doc)</code></li>
+      </ul>
+    </div>
+
+    <div class="demo-area">
+      <h3 style="color:#60a5fa;margin-bottom:16px;">Interactive: Loss Calculation</h3>
+      <div class="demo-controls">
+        <label>Score(q, doc<sup>+</sup>):</label>
+        <input type="range" id="score-pos" min="-3" max="5" value="3" step="0.1" oninput="updateLoss()">
+        <span class="val" id="val-pos">3.0</span>
+      </div>
+      <div class="demo-controls">
+        <label>Score(q, doc<sup>-</sup><sub>1</sub>):</label>
+        <input type="range" id="score-neg1" min="-3" max="5" value="1" step="0.1" oninput="updateLoss()">
+        <span class="val" id="val-neg1">1.0</span>
+      </div>
+      <div class="demo-controls">
+        <label>Score(q, doc<sup>-</sup><sub>2</sub>):</label>
+        <input type="range" id="score-neg2" min="-3" max="5" value="-1" step="0.1" oninput="updateLoss()">
+        <span class="val" id="val-neg2">-1.0</span>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;">
+        <div style="flex:1;min-width:200px;">
+          <canvas id="canvas-loss" width="400" height="200"></canvas>
+        </div>
+        <div style="flex:1;min-width:200px;">
+          <p style="color:#94a3b8;margin-bottom:8px;">Softmax probabilities:</p>
+          <div id="prob-bars"></div>
+          <p style="margin-top:16px;color:#94a3b8;">Loss = <span id="loss-val" style="color:#f1f5f9;font-weight:bold;font-size:1.2rem;">-</span></p>
+          <p style="color:#64748b;font-size:0.85rem;margin-top:4px;">Goal: minimize loss by maximizing P(doc<sup>+</sup>)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+  if (idx === 0) { drawCross(); drawDPR(); }
+  if (idx === 1) renderStep();
+  if (idx === 2) updateCost();
+  if (idx === 3) updateLoss();
+}
+
+// ============ Panel 0: Architecture Canvases ============
+function drawCross() {
+  const c = document.getElementById('canvas-cross');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const layers = 4;
+  const tokensQ = 4, tokensD = 5;
+  const total = tokensQ + tokensD;
+  const startX = 60, gapX = 42, gapY = 70;
+  const startY = H - 50;
+  const r = 16;
+
+  // Draw tokens at bottom
+  const colors = [];
+  const labels = ['[CLS]','Q1','Q2','Q3','[SEP]','D1','D2','D3','D4'];
+  for (let i = 0; i < total + 1; i++) {
+    const x = startX + i * gapX;
+    const isQuery = i > 0 && i <= tokensQ;
+    const isDoc = i > tokensQ;
+    const isSep = i === tokensQ;
+    const isCls = i === 0;
+    colors.push(isCls ? '#a78bfa' : isSep ? '#78716c' : isQuery ? '#4ade80' : '#60a5fa');
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(x - r, startY - r, r * 2, r * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(labels[i] || '', x, startY + 4);
+  }
+
+  // Draw layers with full connections
+  for (let layer = 0; layer < layers; layer++) {
+    const y = startY - (layer + 1) * gapY;
+    const yPrev = startY - layer * gapY;
+
+    // Draw connections (full attention - all to all)
+    for (let i = 0; i < total + 1; i++) {
+      for (let j = 0; j < total + 1; j++) {
+        const x1 = startX + i * gapX;
+        const x2 = startX + j * gapX;
+        ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, yPrev - r);
+        ctx.lineTo(x2, y + r);
+        ctx.stroke();
+      }
+    }
+
+    // Draw nodes
+    for (let i = 0; i < total + 1; i++) {
+      const x = startX + i * gapX;
+      const isQuery = i > 0 && i <= tokensQ;
+      const isDoc = i > tokensQ;
+      ctx.fillStyle = isQuery ? '#166534' : isDoc ? '#1e3a5f' : (i === 0 ? '#581c87' : '#44403c');
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      ctx.fillStyle = isQuery ? '#4ade80' : isDoc ? '#60a5fa' : (i === 0 ? '#a78bfa' : '#a8a29e');
+      ctx.fillRect(x - r + 2, y - r + 2, r * 2 - 4, r * 2 - 4);
+    }
+  }
+
+  // CLS output arrow
+  const topY = startY - layers * gapY - r;
+  const clsX = startX;
+  ctx.strokeStyle = '#a78bfa';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(clsX, topY);
+  ctx.lineTo(clsX, topY - 30);
+  ctx.stroke();
+  ctx.fillStyle = '#a78bfa';
+  ctx.beginPath();
+  ctx.moveTo(clsX - 6, topY - 24);
+  ctx.lineTo(clsX, topY - 34);
+  ctx.lineTo(clsX + 6, topY - 24);
+  ctx.fill();
+
+  // Dense label
+  ctx.fillStyle = '#a78bfa';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Dense → Score', clsX + 60, topY - 38);
+
+  // Label
+  ctx.fillStyle = '#4ade80';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Query', startX + tokensQ / 2 * gapX, startY + 30);
+  ctx.fillStyle = '#60a5fa';
+  ctx.fillText('Document', startX + (tokensQ + 1 + tokensD / 2) * gapX, startY + 30);
+
+  // Full attention label
+  ctx.fillStyle = '#fb923c';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('Full cross-attention (all tokens interact)', W / 2, 16);
+}
+
+function drawDPR() {
+  const c = document.getElementById('canvas-dpr');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const layers = 4;
+  const tokensQ = 4, tokensD = 4;
+  const gapX = 38, gapY = 70;
+  const r = 16;
+  const startY = H - 50;
+  const qStartX = 40, dStartX = 280;
+
+  function drawEncoder(startX, numTokens, color, lightColor, darkColor, label, encoderLabel) {
+    // Bottom tokens
+    for (let i = 0; i < numTokens; i++) {
+      const x = startX + i * gapX;
+      ctx.fillStyle = darkColor;
+      ctx.fillRect(x - r, startY - r, r * 2, r * 2);
+      ctx.fillStyle = lightColor;
+      ctx.fillRect(x - r + 2, startY - r + 2, r * 2 - 4, r * 2 - 4);
+    }
+
+    // Layers with self-attention only
+    for (let layer = 0; layer < layers; layer++) {
+      const y = startY - (layer + 1) * gapY;
+      const yPrev = startY - layer * gapY;
+
+      for (let i = 0; i < numTokens; i++) {
+        for (let j = 0; j < numTokens; j++) {
+          ctx.strokeStyle = 'rgba(148,163,184,0.2)';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(startX + i * gapX, yPrev - r);
+          ctx.lineTo(startX + j * gapX, y + r);
+          ctx.stroke();
+        }
+      }
+
+      for (let i = 0; i < numTokens; i++) {
+        const x = startX + i * gapX;
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        ctx.fillStyle = lightColor;
+        ctx.globalAlpha = 0.4 + 0.15 * layer;
+        ctx.fillRect(x - r + 2, y - r + 2, r * 2 - 4, r * 2 - 4);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // CLS output
+    const topY = startY - layers * gapY - r;
+    const clsX = startX;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(clsX, topY);
+    ctx.lineTo(clsX, topY - 25);
+    ctx.stroke();
+
+    // Vector box
+    ctx.fillStyle = color;
+    ctx.fillRect(clsX - 20, topY - 45, 40, 18);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('vec', clsX, topY - 33);
+
+    // Labels
+    ctx.fillStyle = lightColor;
+    ctx.font = '13px sans-serif';
+    ctx.fillText(label, startX + (numTokens - 1) / 2 * gapX, startY + 30);
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = color;
+    ctx.fillText(encoderLabel, startX + (numTokens - 1) / 2 * gapX, topY - 52);
+  }
+
+  drawEncoder(qStartX, tokensQ, '#4ade80', '#4ade80', '#166534', 'Query', 'EncQ');
+  drawEncoder(dStartX, tokensD, '#60a5fa', '#60a5fa', '#1e3a5f', 'Document', 'EncD');
+
+  // Dot product arrow between vectors
+  const topY = startY - layers * gapY - r;
+  const qVecX = qStartX + 20, dVecX = dStartX - 20;
+  const midY = topY - 36;
+
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(qVecX, midY);
+  ctx.lineTo(dVecX, midY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('dot product', (qVecX + dVecX) / 2, midY - 8);
+
+  // No cross attention label
+  ctx.fillStyle = '#22d3ee';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('Independent encoding (no cross-attention)', W / 2, 16);
+}
+
+// Run initial draw
+setTimeout(() => { drawCross(); drawDPR(); }, 100);
+
+// ============ Panel 1: Step-by-Step ============
+let currentStep = 0;
+const steps = [
+  {
+    title: 'Step 1: Training Data',
+    html: `<h3 style="color:#60a5fa;margin-bottom:12px;">Training Triplets</h3>
+    <p>두 모델 모두 같은 형태의 training data를 사용합니다:</p>
+    <div class="formula">&#10216; q<sub>i</sub>, doc<sub>i</sub><sup style="color:#4ade80;">+</sup>, {doc<sub>i,k</sub><sup style="color:#f87171;">-</sup>} &#10217;</div>
+    <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;background:#0f172a;padding:16px;border-radius:8px;border:1px solid #334155;">
+        <p style="color:#fbbf24;font-weight:bold;">Example:</p>
+        <p style="color:#4ade80;">q: "What is the capital of France?"</p>
+        <p style="color:#60a5fa;">doc<sup>+</sup>: "Paris is the capital and largest city of France."</p>
+        <p style="color:#f87171;">doc<sup>-</sup><sub>1</sub>: "France is known for its cuisine."</p>
+        <p style="color:#f87171;">doc<sup>-</sup><sub>2</sub>: "Berlin is the capital of Germany."</p>
+      </div>
+    </div>`
+  },
+  {
+    title: 'Step 2: Cross-Encoder Input',
+    html: `<h3 style="color:#f97316;margin-bottom:12px;">Cross-Encoder: Input Construction</h3>
+    <p>Query와 document를 하나의 sequence로 합칩니다:</p>
+    <div class="token-flow" style="margin:16px 0;">
+      <span class="token cls">[CLS]</span>
+      <span class="token query">What</span><span class="token query">is</span><span class="token query">the</span>
+      <span class="token query">capital</span><span class="token query">of</span><span class="token query">France</span><span class="token query">?</span>
+      <span class="token sep">[SEP]</span>
+      <span class="token doc">Paris</span><span class="token doc">is</span><span class="token doc">the</span>
+      <span class="token doc">capital</span><span class="token doc">and</span><span class="token doc">largest</span>
+      <span class="token doc">city</span><span class="token doc">of</span><span class="token doc">France</span>
+      <span class="token sep">[SEP]</span>
+    </div>
+    <p style="color:#fb923c;"><strong>핵심:</strong> 모든 token이 같은 BERT 안에서 서로 attend할 수 있습니다.
+    "capital"(query)과 "capital"(doc)이 직접 attention으로 연결됩니다.</p>
+    <p style="margin-top:8px;color:#94a3b8;">각 (q, doc) 쌍마다 이 과정을 반복해야 합니다. → <strong style="color:#f87171;">O(Q x D) forward passes</strong></p>`
+  },
+  {
+    title: 'Step 3: DPR Input',
+    html: `<h3 style="color:#22d3ee;margin-bottom:12px;">DPR: Independent Encoding</h3>
+    <p>Query와 document를 <strong>각각 별도로</strong> encoding합니다:</p>
+    <div style="display:flex;gap:20px;margin:16px 0;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;background:#0f172a;padding:16px;border-radius:8px;border:1px solid #166534;">
+        <p style="color:#4ade80;font-weight:bold;margin-bottom:8px;">EncQ (Query Encoder):</p>
+        <div class="token-flow">
+          <span class="token cls">[CLS]</span>
+          <span class="token query">What</span><span class="token query">is</span><span class="token query">the</span>
+          <span class="token query">capital</span><span class="token query">of</span><span class="token query">France</span><span class="token query">?</span>
+        </div>
+        <p style="color:#94a3b8;margin-top:8px;font-size:0.85rem;">→ [CLS] representation = query vector</p>
+      </div>
+      <div style="flex:1;min-width:200px;background:#0f172a;padding:16px;border-radius:8px;border:1px solid #1e3a5f;">
+        <p style="color:#60a5fa;font-weight:bold;margin-bottom:8px;">EncD (Document Encoder):</p>
+        <div class="token-flow">
+          <span class="token cls">[CLS]</span>
+          <span class="token doc">Paris</span><span class="token doc">is</span><span class="token doc">the</span>
+          <span class="token doc">capital</span><span class="token doc">...</span>
+        </div>
+        <p style="color:#94a3b8;margin-top:8px;font-size:0.85rem;">→ [CLS] representation = document vector</p>
+      </div>
+    </div>
+    <p style="color:#22d3ee;"><strong>핵심:</strong> Query token과 document token은 서로 <strong>절대 attend하지 않습니다</strong>.
+    Document encoding은 query와 무관하게 미리 계산 가능!</p>`
+  },
+  {
+    title: 'Step 4: Scoring',
+    html: `<h3 style="color:#60a5fa;margin-bottom:12px;">Relevance Score 계산</h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;background:#0f172a;padding:16px;border-radius:8px;border:2px solid #f97316;">
+        <h4 style="color:#f97316;">Cross-Encoder</h4>
+        <div class="formula">Rep(q, doc) = Dense(Enc([q; doc])<sub>N,0</sub>)</div>
+        <p style="color:#cbd5e1;margin-top:8px;font-size:0.9rem;">
+          [CLS] token의 최종 hidden state → Dense layer → scalar score<br>
+          <span style="color:#fb923c;">매우 표현력이 풍부함</span> (모든 layer에서 cross-attention 발생)
+        </p>
+      </div>
+      <div style="flex:1;min-width:280px;background:#0f172a;padding:16px;border-radius:8px;border:2px solid #22d3ee;">
+        <h4 style="color:#22d3ee;">DPR</h4>
+        <div class="formula">Sim(q, doc) = EncQ(q)<sub>N,0</sub><sup>T</sup> &middot; EncD(doc)<sub>N,0</sub></div>
+        <p style="color:#cbd5e1;margin-top:8px;font-size:0.9rem;">
+          두 [CLS] vector의 dot product → scalar score<br>
+          <span style="color:#22d3ee;">제한적이지만 효율적</span> (interaction은 최종 dot product에서만)
+        </p>
+      </div>
+    </div>`
+  },
+  {
+    title: 'Step 5: Loss Function',
+    html: `<h3 style="color:#a78bfa;margin-bottom:12px;">Training Objective</h3>
+    <p>두 모델 모두 <strong>동일한 loss function</strong>을 사용합니다 (negative log-likelihood):</p>
+    <div class="formula" style="font-size:1.05rem;">
+      L = - log &nbsp; exp(score(q, doc<sup>+</sup>)) &frasl; [ exp(score(q, doc<sup>+</sup>)) + &Sigma; exp(score(q, doc<sub>j</sub><sup>-</sup>)) ]
+    </div>
+    <p style="margin-top:12px;color:#cbd5e1;">이것은 본질적으로 <strong>(n+1)-way classification</strong> 문제입니다:</p>
+    <div style="background:#0f172a;padding:16px;border-radius:8px;margin-top:12px;border:1px solid #334155;">
+      <p style="color:#4ade80;">1. Positive document의 score → 높여야 함 (exp 값 커짐)</p>
+      <p style="color:#f87171;">2. Negative documents의 score → 낮춰야 함 (exp 값 작아짐)</p>
+      <p style="color:#fbbf24;">3. Softmax 형태이므로, positive의 확률이 1에 가까워질수록 loss → 0</p>
+    </div>
+    <p style="margin-top:12px;color:#94a3b8;font-size:0.9rem;">Cross-Encoder에서는 score = Rep(q,doc), DPR에서는 score = Sim(q,doc)</p>`
+  },
+  {
+    title: 'Step 6: Trade-off Summary',
+    html: `<h3 style="color:#60a5fa;margin-bottom:12px;">The Fundamental Trade-off</h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#431407,#1e293b);padding:20px;border-radius:12px;border:1px solid #f97316;">
+        <h4 style="color:#f97316;font-size:1.1rem;">Cross-Encoder</h4>
+        <p style="color:#fed7aa;margin:12px 0;font-size:1.3rem;font-weight:bold;">Quality &uarr;&uarr;&uarr;</p>
+        <ul style="color:#cbd5e1;padding-left:16px;">
+          <li>모든 layer에서 full cross-attention</li>
+          <li>"Python" in query ↔ "programming language" in doc 직접 연결</li>
+          <li>Re-ranking에서 최고 성능</li>
+        </ul>
+        <p style="color:#f87171;margin-top:12px;font-weight:bold;">Scalability &darr;&darr;&darr;</p>
+        <ul style="color:#fca5a5;padding-left:16px;">
+          <li>Every (q, doc) pair = 1 BERT forward pass</li>
+          <li>Pre-computation 불가능</li>
+          <li>Wikipedia 규모에서는 비현실적</li>
+        </ul>
+      </div>
+      <div style="flex:1;min-width:280px;background:linear-gradient(135deg,#042f2e,#1e293b);padding:20px;border-radius:12px;border:1px solid #22d3ee;">
+        <h4 style="color:#22d3ee;font-size:1.1rem;">DPR (Dual Encoder)</h4>
+        <p style="color:#a5f3fc;margin:12px 0;font-size:1.3rem;font-weight:bold;">Scalability &uarr;&uarr;&uarr;</p>
+        <ul style="color:#cbd5e1;padding-left:16px;">
+          <li>Document embedding을 offline으로 미리 계산</li>
+          <li>FAISS 등 ANN index 사용 가능</li>
+          <li>Wikipedia 21M 문서 → 밀리초 검색</li>
+        </ul>
+        <p style="color:#fbbf24;margin-top:12px;font-weight:bold;">Quality &darr; (상대적)</p>
+        <ul style="color:#fde68a;padding-left:16px;">
+          <li>Query-document interaction이 dot product에서만</li>
+          <li>세밀한 의미 매칭에서 약점</li>
+          <li>Hard negatives에서 실수 가능</li>
+        </ul>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:20px;padding:16px;background:#0f172a;border-radius:8px;border:1px solid #334155;">
+      <p style="color:#fbbf24;font-size:1.1rem;font-weight:bold;">Real-world Solution: DPR로 top-k 검색 → Cross-Encoder로 re-ranking</p>
+    </div>`
+  }
+];
+
+function renderStep() {
+  const el = document.getElementById('step-content');
+  el.innerHTML = `<div style="margin-bottom:8px;"><span style="color:#fbbf24;font-weight:bold;">${steps[currentStep].title}</span></div>${steps[currentStep].html}`;
+  document.getElementById('step-indicator').textContent = `Step ${currentStep + 1} / ${steps.length}`;
+  document.getElementById('btn-prev').disabled = currentStep === 0;
+  document.getElementById('btn-next').disabled = currentStep === steps.length - 1;
+}
+function stepNav(dir) {
+  currentStep = Math.max(0, Math.min(steps.length - 1, currentStep + dir));
+  renderStep();
+}
+renderStep();
+
+// ============ Panel 2: Scalability ============
+function updateCost() {
+  const D = parseInt(document.getElementById('slider-docs').value);
+  const Q = parseInt(document.getElementById('slider-queries').value);
+  document.getElementById('val-docs').textContent = D.toLocaleString();
+  document.getElementById('val-queries').textContent = Q.toLocaleString();
+
+  const crossCost = Q * D;
+  const dprCost = D + Q;
+
+  const maxH = 180;
+  const logCross = Math.log10(crossCost + 1);
+  const logDPR = Math.log10(dprCost + 1);
+  const maxLog = Math.max(logCross, logDPR);
+
+  const hCross = Math.max(10, (logCross / maxLog) * maxH);
+  const hDPR = Math.max(10, (logDPR / maxLog) * maxH);
+
+  document.getElementById('bar-cross').style.height = hCross + 'px';
+  document.getElementById('bar-dpr').style.height = hDPR + 'px';
+
+  function fmt(n) {
+    if (n >= 1e12) return (n / 1e12).toFixed(1) + 'T';
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return n.toString();
+  }
+
+  document.getElementById('cost-cross-val').textContent = fmt(crossCost) + ' passes';
+  document.getElementById('cost-dpr-val').textContent = fmt(dprCost) + ' encodings';
+
+  const ratio = crossCost / dprCost;
+  document.getElementById('bar-cross').textContent = fmt(crossCost);
+  document.getElementById('bar-dpr').textContent = fmt(dprCost);
+}
+
+// ============ Panel 3: Loss Interactive ============
+function updateLoss() {
+  const sPos = parseFloat(document.getElementById('score-pos').value);
+  const sNeg1 = parseFloat(document.getElementById('score-neg1').value);
+  const sNeg2 = parseFloat(document.getElementById('score-neg2').value);
+  document.getElementById('val-pos').textContent = sPos.toFixed(1);
+  document.getElementById('val-neg1').textContent = sNeg1.toFixed(1);
+  document.getElementById('val-neg2').textContent = sNeg2.toFixed(1);
+
+  const expPos = Math.exp(sPos);
+  const expNeg1 = Math.exp(sNeg1);
+  const expNeg2 = Math.exp(sNeg2);
+  const total = expPos + expNeg1 + expNeg2;
+
+  const pPos = expPos / total;
+  const pNeg1 = expNeg1 / total;
+  const pNeg2 = expNeg2 / total;
+  const loss = -Math.log(pPos);
+
+  // Prob bars
+  const barHtml = [
+    { label: 'doc⁺', prob: pPos, color: '#4ade80' },
+    { label: 'doc⁻₁', prob: pNeg1, color: '#f87171' },
+    { label: 'doc⁻₂', prob: pNeg2, color: '#f87171' },
+  ].map(b => `
+    <div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+      <span style="color:${b.color};width:40px;font-size:0.85rem;text-align:right;">${b.label}</span>
+      <div style="flex:1;background:#0f172a;border-radius:4px;height:22px;overflow:hidden;">
+        <div style="width:${b.prob * 100}%;background:${b.color};height:100%;border-radius:4px;transition:width 0.3s;display:flex;align-items:center;padding-left:6px;font-size:0.75rem;color:#0f172a;font-weight:bold;">
+          ${(b.prob * 100).toFixed(1)}%
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('prob-bars').innerHTML = barHtml;
+  document.getElementById('loss-val').textContent = loss.toFixed(3);
+
+  // Draw loss landscape
+  const c = document.getElementById('canvas-loss');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Plot: loss as function of score(pos) with current neg scores fixed
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(40, H - 30);
+  ctx.lineTo(W - 10, H - 30);
+  ctx.moveTo(40, 10);
+  ctx.lineTo(40, H - 30);
+  ctx.stroke();
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('score(q, doc⁺)', W / 2, H - 8);
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Loss', 0, 0);
+  ctx.restore();
+
+  const xMin = -3, xMax = 5;
+  const plotW = W - 60, plotH = H - 50;
+
+  // Compute loss curve
+  ctx.beginPath();
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 2;
+  let maxLoss = 0;
+  for (let px = 0; px <= plotW; px++) {
+    const s = xMin + (px / plotW) * (xMax - xMin);
+    const ep = Math.exp(s);
+    const l = -Math.log(ep / (ep + expNeg1 + expNeg2));
+    if (l > maxLoss) maxLoss = l;
+  }
+  maxLoss = Math.max(maxLoss, 1);
+
+  for (let px = 0; px <= plotW; px++) {
+    const s = xMin + (px / plotW) * (xMax - xMin);
+    const ep = Math.exp(s);
+    const l = -Math.log(ep / (ep + expNeg1 + expNeg2));
+    const x = 40 + px;
+    const y = (H - 30) - (l / maxLoss) * plotH;
+    if (px === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Mark current point
+  const curPx = ((sPos - xMin) / (xMax - xMin)) * plotW;
+  const curX = 40 + curPx;
+  const curY = (H - 30) - (loss / maxLoss) * plotH;
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath();
+  ctx.arc(curX, curY, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText(`L=${loss.toFixed(2)}`, curX + 12, curY - 4);
+}
+
+// Init
+updateCost();
+updateLoss();
+</script>
+</body>
+</html>
