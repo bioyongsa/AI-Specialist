@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BM25 Interactive Animation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    overflow-x: hidden;
+  }
+
+  /* Navigation */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(15,15,26,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex; justify-content: center; gap: 8px;
+    padding: 12px 20px;
+  }
+  .nav button {
+    padding: 8px 18px; border: 1px solid rgba(255,255,255,0.2);
+    background: transparent; color: #aaa; border-radius: 20px;
+    cursor: pointer; font-size: 14px; transition: all 0.3s;
+  }
+  .nav button.active { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+  .nav button:hover { border-color: #6c5ce7; color: #fff; }
+
+  /* Sections */
+  .section {
+    display: none; min-height: 100vh; padding: 80px 40px 40px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .section.active { display: block; }
+
+  h1 { font-size: 42px; text-align: center; margin-bottom: 10px; }
+  h1 span { color: #6c5ce7; }
+  h2 { font-size: 28px; color: #74b9ff; margin: 30px 0 15px; }
+  h3 { font-size: 20px; color: #a29bfe; margin: 20px 0 10px; }
+  .subtitle { text-align: center; color: #888; font-size: 16px; margin-bottom: 40px; }
+
+  /* Document cards */
+  .docs-container { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+  .doc-card {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 16px 20px; min-width: 200px; max-width: 280px;
+    transition: all 0.4s; position: relative; overflow: hidden;
+  }
+  .doc-card.highlight {
+    border-color: #6c5ce7; background: rgba(108,92,231,0.1);
+    box-shadow: 0 0 20px rgba(108,92,231,0.3);
+  }
+  .doc-card .doc-title { font-weight: bold; color: #dfe6e9; margin-bottom: 8px; font-size: 14px; }
+  .doc-card .doc-text { font-size: 13px; color: #b2bec3; line-height: 1.6; }
+  .doc-card .doc-text .match {
+    background: rgba(253,203,110,0.3); color: #ffeaa7; padding: 1px 4px;
+    border-radius: 3px; font-weight: bold; transition: all 0.3s;
+  }
+  .doc-card .doc-text .match.active {
+    background: rgba(253,203,110,0.6); transform: scale(1.05);
+  }
+
+  /* Formula display */
+  .formula-box {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 30px; margin: 25px 0; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .formula-box::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, #6c5ce7, transparent);
+  }
+  .formula { font-size: 22px; font-family: 'Georgia', serif; color: #dfe6e9; line-height: 2; }
+  .formula .var { color: #74b9ff; font-style: italic; }
+  .formula .num { color: #ffeaa7; font-weight: bold; transition: all 0.3s; }
+  .formula .op { color: #fd79a8; }
+  .formula .result { color: #55efc4; font-weight: bold; font-size: 26px; }
+
+  /* Calculation steps */
+  .calc-steps {
+    display: flex; flex-direction: column; gap: 12px; margin: 20px 0;
+  }
+  .calc-step {
+    display: flex; align-items: center; gap: 15px;
+    background: rgba(255,255,255,0.03); border-radius: 10px;
+    padding: 14px 20px; opacity: 0; transform: translateX(-30px);
+    transition: all 0.5s ease;
+  }
+  .calc-step.visible { opacity: 1; transform: translateX(0); }
+  .calc-step .step-num {
+    background: #6c5ce7; color: #fff; width: 30px; height: 30px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; flex-shrink: 0;
+  }
+  .calc-step .step-content { flex: 1; }
+  .calc-step .step-label { color: #a29bfe; font-size: 13px; margin-bottom: 4px; }
+  .calc-step .step-formula { color: #dfe6e9; font-size: 15px; font-family: 'Georgia', serif; }
+  .calc-step .step-value { color: #55efc4; font-weight: bold; font-size: 18px; margin-left: auto; }
+
+  /* Bar chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 20px; height: 250px; margin: 30px 0; padding: 0 20px; }
+  .bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .bar {
+    width: 60px; background: linear-gradient(180deg, #6c5ce7, #a29bfe);
+    border-radius: 8px 8px 0 0; transition: height 1s ease; position: relative;
+    min-height: 0;
+  }
+  .bar .bar-value {
+    position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+    color: #55efc4; font-weight: bold; font-size: 14px; white-space: nowrap;
+  }
+  .bar-label { margin-top: 10px; font-size: 12px; color: #888; text-align: center; max-width: 80px; }
+
+  /* Search box */
+  .search-box {
+    display: flex; align-items: center; gap: 12px; justify-content: center;
+    margin: 30px 0;
+  }
+  .search-box input {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 12px 20px; border-radius: 25px; font-size: 16px;
+    width: 300px; outline: none; transition: border-color 0.3s;
+  }
+  .search-box input:focus { border-color: #6c5ce7; }
+  .search-box button {
+    padding: 12px 24px; background: #6c5ce7; color: #fff; border: none;
+    border-radius: 25px; cursor: pointer; font-size: 16px; transition: all 0.3s;
+  }
+  .search-box button:hover { background: #5b4cdb; }
+
+  /* Controls */
+  .controls { display: flex; justify-content: center; gap: 12px; margin: 25px 0; }
+  .controls button {
+    padding: 10px 24px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05); color: #dfe6e9; border-radius: 8px;
+    cursor: pointer; font-size: 14px; transition: all 0.3s;
+  }
+  .controls button:hover { background: rgba(108,92,231,0.3); border-color: #6c5ce7; }
+  .controls button.primary { background: #6c5ce7; border-color: #6c5ce7; }
+
+  /* Explanation text */
+  .explain {
+    background: rgba(116,185,255,0.08); border-left: 3px solid #74b9ff;
+    padding: 15px 20px; border-radius: 0 8px 8px 0; margin: 15px 0;
+    font-size: 14px; line-height: 1.8; color: #b2bec3;
+  }
+
+  /* Parameter sliders */
+  .param-group { display: flex; gap: 30px; margin: 20px 0; flex-wrap: wrap; }
+  .param {
+    flex: 1; min-width: 200px; background: rgba(255,255,255,0.03);
+    border-radius: 10px; padding: 15px 20px;
+  }
+  .param label { display: flex; justify-content: space-between; color: #a29bfe; font-size: 14px; margin-bottom: 8px; }
+  .param label span { color: #55efc4; font-weight: bold; }
+  .param input[type="range"] {
+    width: 100%; -webkit-appearance: none; height: 6px;
+    background: rgba(255,255,255,0.1); border-radius: 3px; outline: none;
+  }
+  .param input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px;
+    background: #6c5ce7; border-radius: 50%; cursor: pointer;
+  }
+
+  /* Ranking table */
+  .ranking-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  .ranking-table th {
+    background: rgba(108,92,231,0.2); color: #a29bfe; padding: 12px 16px;
+    text-align: left; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .ranking-table td {
+    padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 14px; transition: all 0.5s;
+  }
+  .ranking-table tr { transition: all 0.5s; }
+  .ranking-table tr.top { background: rgba(108,92,231,0.1); }
+
+  /* Score badge */
+  .score-badge {
+    display: inline-block; background: rgba(85,239,196,0.15);
+    color: #55efc4; padding: 4px 10px; border-radius: 12px;
+    font-weight: bold; font-size: 13px;
+  }
+
+  /* Animation for section transitions */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: fadeInUp 0.6s ease forwards; }
+
+  /* Step indicator */
+  .step-indicator {
+    display: flex; justify-content: center; gap: 8px; margin: 20px 0;
+  }
+  .step-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(255,255,255,0.2); transition: all 0.3s;
+  }
+  .step-dot.active { background: #6c5ce7; transform: scale(1.3); }
+
+  .tag {
+    display: inline-block; background: rgba(108,92,231,0.2); color: #a29bfe;
+    padding: 2px 8px; border-radius: 4px; font-size: 12px; margin: 2px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .highlight-num { color: #ffeaa7 !important; font-weight: bold; }
+
+  /* Race bars (horizontal) */
+  .race-row {
+    display: flex; align-items: center; gap: 12px; margin: 8px 0;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+  .race-label {
+    width: 180px; flex-shrink: 0; font-size: 13px; color: #dfe6e9;
+    text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .race-bar-bg {
+    flex: 1; height: 38px; background: rgba(255,255,255,0.03);
+    border-radius: 6px; position: relative; overflow: hidden;
+  }
+  .race-bar-fill {
+    height: 100%; border-radius: 6px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.5s;
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 10px;
+    font-size: 13px; font-weight: bold; color: #fff; min-width: 50px;
+  }
+  .race-rank {
+    width: 32px; height: 32px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-weight: bold;
+    font-size: 16px; flex-shrink: 0; transition: all 0.5s;
+  }
+  .race-rank.r1 { background: #ffd700; color: #1a1a2e; }
+  .race-rank.r2 { background: #c0c0c0; color: #1a1a2e; }
+  .race-rank.r3 { background: #cd7f32; color: #1a1a2e; }
+  .race-rank.r4 { background: rgba(255,255,255,0.15); color: #888; }
+  .race-rank.r5 { background: rgba(255,255,255,0.08); color: #666; }
+
+  .race-change {
+    width: 50px; flex-shrink: 0; text-align: center; font-size: 14px; font-weight: bold;
+    transition: all 0.5s;
+  }
+  .race-change.up { color: #55efc4; }
+  .race-change.down { color: #ff7675; }
+  .race-change.same { color: #636e72; }
+
+  /* Preset buttons */
+  .preset-btn {
+    padding: 10px 18px; border: 2px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04); color: #b2bec3; border-radius: 12px;
+    cursor: pointer; font-size: 13px; transition: all 0.3s; text-align: center;
+    min-width: 140px;
+  }
+  .preset-btn:hover { border-color: #6c5ce7; color: #dfe6e9; background: rgba(108,92,231,0.1); }
+  .preset-btn.active { border-color: #6c5ce7; color: #fff; background: rgba(108,92,231,0.25); box-shadow: 0 0 15px rgba(108,92,231,0.3); }
+  .preset-btn .preset-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+  .preset-btn .preset-vals { color: #a29bfe; font-size: 12px; }
+
+  /* Rank change flash */
+  @keyframes flashGold {
+    0% { box-shadow: 0 0 0px rgba(255,215,0,0); }
+    50% { box-shadow: 0 0 20px rgba(255,215,0,0.5); }
+    100% { box-shadow: 0 0 0px rgba(255,215,0,0); }
+  }
+  .rank-flash { animation: flashGold 0.6s ease; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <button class="active" onclick="showSection('intro')">Intro</button>
+  <button onclick="showSection('idf')">IDF</button>
+  <button onclick="showSection('tf')">TF Scoring</button>
+  <button onclick="showSection('bm25')">BM25</button>
+  <button onclick="showSection('demo')">Live Demo</button>
+</nav>
+
+<!-- INTRO -->
+<div id="intro" class="section active">
+  <h1><span>BM25</span> 이해하기</h1>
+  <p class="subtitle">Best Match 25 — 검색 엔진의 핵심 랭킹 알고리즘</p>
+
+  <div class="explain" style="max-width:700px; margin: 30px auto;">
+    BM25는 검색어(query)에 대해 문서(document)의 <strong>관련성 점수</strong>를 계산하는 알고리즘입니다.<br>
+    Google, Elasticsearch, Lucene 등 대부분의 검색 엔진에서 사용됩니다.<br><br>
+    핵심 아이디어: <strong>희귀한 단어</strong>가 문서에 많이 나타날수록 → 더 관련성 높은 문서!
+  </div>
+
+  <h2>예제 문서 컬렉션 (D)</h2>
+  <div class="docs-container" id="intro-docs"></div>
+
+  <div class="explain" style="margin-top: 20px;">
+    위 5개 문서에서 <strong>"머신러닝"</strong>을 검색한다고 가정해봅시다.<br>
+    BM25는 3가지 요소를 조합합니다:
+  </div>
+
+  <div class="grid-2" style="margin-top: 20px;">
+    <div class="formula-box">
+      <h3>1. IDF (역문서빈도)</h3>
+      <p style="color:#888; font-size:14px;">단어가 얼마나 희귀한가?</p>
+      <p style="color:#74b9ff; margin-top:10px;">흔한 단어 → 낮은 점수<br>희귀한 단어 → 높은 점수</p>
+    </div>
+    <div class="formula-box">
+      <h3>2. TF Scoring (단어빈도)</h3>
+      <p style="color:#888; font-size:14px;">문서에 단어가 몇 번 나오는가?</p>
+      <p style="color:#74b9ff; margin-top:10px;">많이 등장 → 높은 점수<br>하지만 포화(saturation) 적용!</p>
+    </div>
+  </div>
+
+  <div class="formula-box" style="max-width: 500px; margin: 20px auto;">
+    <h3>최종 BM25 점수</h3>
+    <div class="formula">
+      <span class="var">BM25</span> = <span class="var">IDF</span> × <span class="var">TF Score</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" onclick="showSection('idf')">IDF부터 시작하기 →</button>
+  </div>
+</div>
+
+<!-- IDF Section -->
+<div id="idf" class="section">
+  <h1>Step 1: <span>IDF</span></h1>
+  <p class="subtitle">Inverse Document Frequency — 단어의 희귀도</p>
+
+  <div class="formula-box">
+    <div class="formula">
+      IDF(<span class="var">w</span>) = log<sub>e</sub>(1 + (<span class="var">|D|</span> − <span class="var">df</span> + 0.5) / (<span class="var">df</span> + 0.5))
+    </div>
+    <div style="margin-top:15px; font-size:14px; color:#888;">
+      <span class="var">|D|</span> = 전체 문서 수 &nbsp;|&nbsp;
+      <span class="var">df</span> = 해당 단어가 등장하는 문서 수
+    </div>
+  </div>
+
+  <div class="explain">
+    <strong>직관:</strong> "the", "is" 같은 흔한 단어는 거의 모든 문서에 있으므로 df ≈ |D| → IDF ≈ 0<br>
+    반면 "양자컴퓨팅" 같은 희귀한 단어는 df가 작아 → IDF가 커집니다.
+  </div>
+
+  <h2>단어별 IDF 비교</h2>
+  <p style="color:#888; font-size:14px; margin-bottom:10px;">|D| = 5 (전체 문서 5개)</p>
+
+  <div id="idf-chart" class="bar-chart"></div>
+  <div id="idf-labels" style="display:flex; gap:20px; justify-content:center; flex-wrap:wrap;"></div>
+
+  <div id="idf-calc-steps" class="calc-steps" style="margin-top:30px;"></div>
+
+  <div class="controls" style="margin-top:30px;">
+    <button onclick="animateIDF()">계산 애니메이션 ▶</button>
+    <button class="primary" onclick="showSection('tf')">TF Scoring으로 →</button>
+  </div>
+</div>
+
+<!-- TF Scoring Section -->
+<div id="tf" class="section">
+  <h1>Step 2: <span>TF Scoring</span></h1>
+  <p class="subtitle">Term Frequency with Saturation — 단어 빈도 점수</p>
+
+  <div class="formula-box">
+    <div class="formula">
+      Score(<span class="var">w</span>, doc) =
+      <span class="var">TF</span> · (<span class="var">k</span> + 1) /
+      (<span class="var">TF</span> + <span class="var">k</span> · (1 − <span class="var">b</span> + <span class="var">b</span> · <span class="var">|doc|</span>/<span class="var">avgdl</span>))
+    </div>
+  </div>
+
+  <div class="param-group">
+    <div class="param">
+      <label>k (포화 계수) <span id="k-val">1.2</span></label>
+      <input type="range" id="k-slider" min="0" max="3" step="0.1" value="1.2" oninput="updateTFChart()">
+      <p style="color:#666; font-size:12px; margin-top:5px;">높을수록 TF의 영향이 천천히 포화</p>
+    </div>
+    <div class="param">
+      <label>b (문서 길이 보정) <span id="b-val">0.75</span></label>
+      <input type="range" id="b-slider" min="0" max="1" step="0.05" value="0.75" oninput="updateTFChart()">
+      <p style="color:#666; font-size:12px; margin-top:5px;">1이면 긴 문서에 강한 페널티, 0이면 길이 무시</p>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h3>TF Saturation 곡선</h3>
+      <canvas id="tf-curve" width="450" height="280"></canvas>
+      <div class="explain" style="margin-top:10px;">
+        TF가 증가해도 점수는 <strong>무한히 올라가지 않고</strong> 포화됩니다.<br>
+        이것이 순수 TF와 BM25의 핵심 차이입니다.
+      </div>
+    </div>
+    <div>
+      <h3>문서 길이 보정 (b 파라미터)</h3>
+      <canvas id="len-curve" width="450" height="280"></canvas>
+      <div class="explain" style="margin-top:10px;">
+        긴 문서는 단어가 자연스럽게 더 많이 등장하므로<br>
+        <strong>b</strong>가 이를 보정합니다. b=0이면 보정 없음.
+      </div>
+    </div>
+  </div>
+
+  <h2>실제 계산 예시</h2>
+  <p style="color:#888;">검색어: "머신러닝" | k=1.2, b=0.75, avgdl=<span id="avgdl-display"></span></p>
+  <div id="tf-calc-steps" class="calc-steps" style="margin-top:15px;"></div>
+
+  <div class="controls" style="margin-top:30px;">
+    <button onclick="animateTF()">계산 애니메이션 ▶</button>
+    <button class="primary" onclick="showSection('bm25')">최종 BM25로 →</button>
+  </div>
+</div>
+
+<!-- BM25 Final Section -->
+<div id="bm25" class="section">
+  <h1>Final: <span>BM25</span> Score</h1>
+  <p class="subtitle">IDF × TF Score = 최종 관련성 점수</p>
+
+  <div class="formula-box">
+    <div class="formula">
+      BM25(<span class="var">w</span>, doc, D) = Score<sub>BM25</sub>(<span class="var">w</span>, doc) × IDF<sub>BM25</sub>(<span class="var">w</span>, D)
+    </div>
+  </div>
+
+  <div class="explain">
+    각 문서에 대해 IDF(전체 컬렉션 기준)와 TF Score(개별 문서 기준)를 곱해서 최종 점수를 구합니다.<br>
+    검색어가 여러 단어인 경우, 각 단어의 BM25를 합산합니다.
+  </div>
+
+  <h2>검색어: "머신러닝" — 문서별 최종 점수</h2>
+  <div id="bm25-breakdown"></div>
+
+  <div style="margin-top: 30px;">
+    <h2>문서 랭킹 결과</h2>
+    <table class="ranking-table" id="ranking-table">
+      <thead>
+        <tr>
+          <th>순위</th><th>문서</th><th>TF</th><th>|doc|</th><th>TF Score</th><th>IDF</th><th>BM25</th>
+        </tr>
+      </thead>
+      <tbody id="ranking-body"></tbody>
+    </table>
+  </div>
+
+  <div id="bm25-bars" class="bar-chart" style="height:200px; margin-top:30px;"></div>
+
+  <div class="controls" style="margin-top:30px;">
+    <button onclick="animateBM25()">랭킹 애니메이션 ▶</button>
+    <button class="primary" onclick="showSection('demo')">라이브 데모 →</button>
+  </div>
+</div>
+
+<!-- Live Demo Section -->
+<div id="demo" class="section">
+  <h1>Live <span>Demo</span></h1>
+  <p class="subtitle">k와 b 값에 따라 문서 랭킹이 극적으로 바뀌는 것을 확인해보세요</p>
+
+  <div class="search-box">
+    <input type="text" id="search-input" placeholder="검색어 입력 (예: 딥러닝 모델)" value="머신러닝 데이터">
+    <button onclick="runDemo()">검색</button>
+  </div>
+
+  <!-- Preset scenarios -->
+  <div style="margin: 20px 0;">
+    <h3 style="text-align:center; margin-bottom: 15px;">시나리오 프리셋</h3>
+    <div id="presets" style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;"></div>
+  </div>
+
+  <!-- Sliders -->
+  <div class="param-group">
+    <div class="param">
+      <label>k (포화 계수) <span id="demo-k-val">1.2</span></label>
+      <input type="range" id="demo-k" min="0" max="3" step="0.05" value="1.2" oninput="onSliderChange()">
+      <div style="display:flex; justify-content:space-between; color:#555; font-size:11px; margin-top:4px;">
+        <span>0 (TF 무시)</span><span>1.2 (기본)</span><span>3.0 (TF 중시)</span>
+      </div>
+    </div>
+    <div class="param">
+      <label>b (문서 길이 보정) <span id="demo-b-val">0.75</span></label>
+      <input type="range" id="demo-b" min="0" max="1" step="0.05" value="0.75" oninput="onSliderChange()">
+      <div style="display:flex; justify-content:space-between; color:#555; font-size:11px; margin-top:4px;">
+        <span>0 (길이 무시)</span><span>0.75 (기본)</span><span>1.0 (강한 보정)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current scenario explanation -->
+  <div id="demo-explain" class="explain" style="text-align:center; font-size:15px;"></div>
+
+  <!-- Animated ranking race -->
+  <div style="margin: 30px 0;">
+    <h2 style="text-align:center;">문서 랭킹 레이스</h2>
+    <div id="race-container" style="margin-top:20px; display:flex; flex-direction:column;"></div>
+  </div>
+
+  <!-- Detail table -->
+  <table class="ranking-table" id="demo-table" style="margin-top:20px;">
+    <thead>
+      <tr><th>순위</th><th>문서</th><th>TF</th><th>|doc|</th><th>TF Score</th><th>IDF 합</th><th>BM25</th></tr>
+    </thead>
+    <tbody id="demo-body"></tbody>
+  </table>
+
+  <!-- Animate between presets -->
+  <div class="controls" style="margin-top: 20px;">
+    <button class="primary" onclick="animatePresetCycle()" id="cycle-btn">모든 시나리오 자동 재생 ▶</button>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const documents = [
+  {
+    id: 1,
+    title: "Doc 1: 머신러닝 입문",
+    text: "머신러닝은 데이터에서 패턴을 학습하는 기술이다. 머신러닝 모델은 데이터가 많을수록 성능이 좋아진다. 머신러닝의 종류에는 지도학습과 비지도학습이 있다.",
+    words: ["머신러닝", "데이터", "패턴", "학습", "기술", "머신러닝", "모델", "데이터", "성능", "머신러닝", "종류", "지도학습", "비지도학습"]
+  },
+  {
+    id: 2,
+    title: "Doc 2: 딥러닝과 신경망",
+    text: "딥러닝은 머신러닝의 한 분야이다. 신경망을 사용하여 복잡한 패턴을 학습한다. 이미지 인식과 자연어 처리에 활용된다.",
+    words: ["딥러닝", "머신러닝", "분야", "신경망", "사용", "복잡", "패턴", "학습", "이미지", "인식", "자연어", "처리", "활용"]
+  },
+  {
+    id: 3,
+    title: "Doc 3: 데이터 분석",
+    text: "데이터 분석은 비즈니스 의사결정에 중요하다. 통계와 시각화를 통해 데이터에서 인사이트를 도출한다.",
+    words: ["데이터", "분석", "비즈니스", "의사결정", "중요", "통계", "시각화", "데이터", "인사이트", "도출"]
+  },
+  {
+    id: 4,
+    title: "Doc 4: 파이썬 프로그래밍",
+    text: "파이썬은 프로그래밍 언어이다. 문법이 간결하고 라이브러리가 풍부하다. 웹 개발과 데이터 과학에 널리 사용된다.",
+    words: ["파이썬", "프로그래밍", "언어", "문법", "간결", "라이브러리", "풍부", "웹", "개발", "데이터", "과학", "사용"]
+  },
+  {
+    id: 5,
+    title: "Doc 5: 머신러닝 실전 프로젝트",
+    text: "머신러닝 프로젝트는 데이터 수집부터 시작한다. 머신러닝 모델을 훈련하고 평가하는 과정이 중요하다. 실전에서 머신러닝을 적용하려면 도메인 지식이 필요하다. 머신러닝 파이프라인 구축도 핵심이다.",
+    words: ["머신러닝", "프로젝트", "데이터", "수집", "시작", "머신러닝", "모델", "훈련", "평가", "과정", "중요", "실전", "머신러닝", "적용", "도메인", "지식", "필요", "머신러닝", "파이프라인", "구축", "핵심"]
+  }
+];
+
+const D = documents.length; // 5
+
+// Count term frequency in a document
+function getTF(term, doc) {
+  return doc.words.filter(w => w === term).length;
+}
+
+// Count document frequency
+function getDF(term) {
+  return documents.filter(doc => doc.words.includes(term)).length;
+}
+
+// Average document length
+function getAvgDL() {
+  return documents.reduce((sum, doc) => sum + doc.words.length, 0) / D;
+}
+
+// IDF calculation
+function calcIDF(df, totalDocs) {
+  return Math.log(1 + (totalDocs - df + 0.5) / (df + 0.5));
+}
+
+// TF Score
+function calcTFScore(tf, docLen, avgdl, k, b) {
+  return (tf * (k + 1)) / (tf + k * (1 - b + b * (docLen / avgdl)));
+}
+
+// BM25 for a single term
+function calcBM25(term, doc, k, b) {
+  const tf = getTF(term, doc);
+  const df = getDF(term);
+  const avgdl = getAvgDL();
+  const idf = calcIDF(df, D);
+  const tfScore = calcTFScore(tf, doc.words.length, avgdl, k, b);
+  return { bm25: idf * tfScore, idf, tfScore, tf, df, docLen: doc.words.length };
+}
+
+// ===== NAVIGATION =====
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelector(`.nav button[onclick="showSection('${id}')"]`).classList.add('active');
+
+  if (id === 'idf') initIDF();
+  if (id === 'tf') initTF();
+  if (id === 'bm25') initBM25();
+  if (id === 'demo') { initPresets(); prevRanking = null; runDemo(); }
+}
+
+// ===== INTRO =====
+function initIntro() {
+  const container = document.getElementById('intro-docs');
+  container.innerHTML = '';
+  documents.forEach(doc => {
+    const card = document.createElement('div');
+    card.className = 'doc-card';
+    const highlighted = doc.text.replace(/머신러닝/g, '<span class="match">머신러닝</span>');
+    card.innerHTML = `
+      <div class="doc-title">${doc.title}</div>
+      <div class="doc-text">${highlighted}</div>
+      <div style="margin-top:8px; color:#888; font-size:12px;">길이: ${doc.words.length}단어 | TF("머신러닝"): ${getTF("머신러닝", doc)}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// ===== IDF =====
+const idfWords = [
+  { word: "데이터", df: 4 },
+  { word: "학습", df: 2 },
+  { word: "머신러닝", df: 3 },
+  { word: "신경망", df: 1 },
+  { word: "파이프라인", df: 1 },
+];
+
+function initIDF() {
+  const chart = document.getElementById('idf-chart');
+  chart.innerHTML = '';
+  idfWords.forEach(item => {
+    const idf = calcIDF(item.df, D);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'bar-wrapper';
+    wrapper.innerHTML = `
+      <div class="bar" style="height:0px" data-target="${idf / 2.0 * 200}">
+        <span class="bar-value">${idf.toFixed(3)}</span>
+      </div>
+      <div class="bar-label"><strong>${item.word}</strong><br>df=${item.df}</div>
+    `;
+    chart.appendChild(wrapper);
+  });
+
+  const steps = document.getElementById('idf-calc-steps');
+  steps.innerHTML = '';
+  idfWords.forEach((item, i) => {
+    const idf = calcIDF(item.df, D);
+    const step = document.createElement('div');
+    step.className = 'calc-step';
+    step.innerHTML = `
+      <div class="step-num">${i + 1}</div>
+      <div class="step-content">
+        <div class="step-label">"${item.word}" — df = ${item.df}</div>
+        <div class="step-formula">log(1 + (${D} − ${item.df} + 0.5) / (${item.df} + 0.5)) = log(1 + ${((D - item.df + 0.5) / (item.df + 0.5)).toFixed(3)})</div>
+      </div>
+      <div class="step-value">${idf.toFixed(3)}</div>
+    `;
+    steps.appendChild(step);
+  });
+}
+
+function animateIDF() {
+  const bars = document.querySelectorAll('#idf-chart .bar');
+  const steps = document.querySelectorAll('#idf-calc-steps .calc-step');
+
+  bars.forEach(bar => { bar.style.height = '0px'; });
+  steps.forEach(step => { step.classList.remove('visible'); });
+
+  bars.forEach((bar, i) => {
+    setTimeout(() => {
+      bar.style.height = bar.dataset.target + 'px';
+      steps[i].classList.add('visible');
+    }, i * 400);
+  });
+}
+
+// ===== TF SCORING =====
+function initTF() {
+  const avgdl = getAvgDL();
+  document.getElementById('avgdl-display').textContent = avgdl.toFixed(1);
+  updateTFChart();
+  buildTFSteps();
+}
+
+function updateTFChart() {
+  const k = parseFloat(document.getElementById('k-slider').value);
+  const b = parseFloat(document.getElementById('b-slider').value);
+  document.getElementById('k-val').textContent = k.toFixed(1);
+  document.getElementById('b-val').textContent = b.toFixed(2);
+  drawTFCurve(k, b);
+  drawLenCurve(k, b);
+}
+
+function drawTFCurve(k, b) {
+  const canvas = document.getElementById('tf-curve');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { left: 50, bottom: 40, top: 20, right: 20 };
+  const gW = W - pad.left - pad.right;
+  const gH = H - pad.top - pad.bottom;
+
+  // Axes
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, H - pad.bottom);
+  ctx.lineTo(W - pad.right, H - pad.bottom);
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#888';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('TF (단어 빈도)', W / 2, H - 5);
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Score', 0, 0);
+  ctx.restore();
+
+  // X ticks
+  for (let i = 0; i <= 10; i++) {
+    const x = pad.left + (i / 10) * gW;
+    ctx.fillStyle = '#666';
+    ctx.fillText(i.toString(), x, H - pad.bottom + 18);
+  }
+
+  const maxScore = (k + 1); // theoretical max
+  // Y ticks
+  for (let i = 0; i <= 4; i++) {
+    const val = (i / 4) * maxScore;
+    const y = H - pad.bottom - (i / 4) * gH;
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1), pad.left - 8, y + 4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(W - pad.right, y);
+    ctx.stroke();
+  }
+
+  // BM25 TF curve (doc length = avgdl)
+  ctx.beginPath();
+  ctx.strokeStyle = '#6c5ce7';
+  ctx.lineWidth = 3;
+  for (let tf = 0; tf <= 10; tf += 0.1) {
+    const score = calcTFScore(tf, 1, 1, k, b); // docLen=avgdl
+    const x = pad.left + (tf / 10) * gW;
+    const y = H - pad.bottom - (score / maxScore) * gH;
+    if (tf === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Pure TF line (for comparison)
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(253,203,110,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  for (let tf = 0; tf <= 10; tf += 0.1) {
+    const x = pad.left + (tf / 10) * gW;
+    const y = H - pad.bottom - (tf / maxScore) * gH;
+    if (tf === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (y < pad.top) break;
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Legend
+  ctx.fillStyle = '#6c5ce7';
+  ctx.fillRect(W - 170, pad.top + 5, 14, 3);
+  ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'left';
+  ctx.fillText('BM25 TF Score', W - 150, pad.top + 10);
+  ctx.fillStyle = 'rgba(253,203,110,0.5)';
+  ctx.fillRect(W - 170, pad.top + 22, 14, 2);
+  ctx.fillStyle = '#888';
+  ctx.fillText('순수 TF (비교용)', W - 150, pad.top + 27);
+}
+
+function drawLenCurve(k, b) {
+  const canvas = document.getElementById('len-curve');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { left: 50, bottom: 40, top: 20, right: 20 };
+  const gW = W - pad.left - pad.right;
+  const gH = H - pad.top - pad.bottom;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, H - pad.bottom);
+  ctx.lineTo(W - pad.right, H - pad.bottom);
+  ctx.stroke();
+
+  ctx.fillStyle = '#888';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('|doc| / avgdl (상대 문서 길이)', W / 2, H - 5);
+
+  const tf = 3; // fixed TF
+  const maxRatio = 3;
+  let maxScore = 0;
+  for (let r = 0.1; r <= maxRatio; r += 0.1) {
+    const s = calcTFScore(tf, r, 1, k, b);
+    if (s > maxScore) maxScore = s;
+  }
+  maxScore *= 1.2;
+
+  // X ticks
+  for (let i = 0; i <= 6; i++) {
+    const val = (i / 6) * maxRatio;
+    const x = pad.left + (i / 6) * gW;
+    ctx.fillStyle = '#666';
+    ctx.fillText(val.toFixed(1), x, H - pad.bottom + 18);
+  }
+
+  // avgdl line
+  const avgX = pad.left + (1 / maxRatio) * gW;
+  ctx.strokeStyle = 'rgba(253,203,110,0.3)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(avgX, pad.top);
+  ctx.lineTo(avgX, H - pad.bottom);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffeaa7';
+  ctx.fillText('avgdl', avgX, pad.top + 15);
+
+  // Draw curves for different b values
+  const bValues = [0, 0.5, 0.75, 1.0];
+  const colors = ['#55efc4', '#74b9ff', '#6c5ce7', '#fd79a8'];
+
+  bValues.forEach((bv, idx) => {
+    ctx.beginPath();
+    ctx.strokeStyle = colors[idx];
+    ctx.lineWidth = bv === b ? 3 : 1.5;
+    ctx.globalAlpha = bv === b ? 1 : 0.4;
+
+    for (let r = 0.1; r <= maxRatio; r += 0.05) {
+      const score = calcTFScore(tf, r, 1, k, bv);
+      const x = pad.left + (r / maxRatio) * gW;
+      const y = H - pad.bottom - (score / maxScore) * gH;
+      if (r <= 0.1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // Legend
+  bValues.forEach((bv, idx) => {
+    ctx.fillStyle = colors[idx];
+    ctx.globalAlpha = bv === b ? 1 : 0.5;
+    ctx.fillRect(W - 120, pad.top + 5 + idx * 18, 12, 3);
+    ctx.fillStyle = bv === b ? '#ddd' : '#888';
+    ctx.textAlign = 'left';
+    ctx.fillText(`b = ${bv}`, W - 100, pad.top + 10 + idx * 18);
+  });
+  ctx.globalAlpha = 1;
+}
+
+function buildTFSteps() {
+  const steps = document.getElementById('tf-calc-steps');
+  steps.innerHTML = '';
+  const k = 1.2, b = 0.75;
+  const avgdl = getAvgDL();
+  const term = "머신러닝";
+
+  documents.forEach((doc, i) => {
+    const tf = getTF(term, doc);
+    const docLen = doc.words.length;
+    const score = calcTFScore(tf, docLen, avgdl, k, b);
+    const denom = tf + k * (1 - b + b * (docLen / avgdl));
+
+    const step = document.createElement('div');
+    step.className = 'calc-step';
+    step.innerHTML = `
+      <div class="step-num">${i + 1}</div>
+      <div class="step-content">
+        <div class="step-label">${doc.title} — TF=${tf}, |doc|=${docLen}</div>
+        <div class="step-formula">${tf} × ${(k+1).toFixed(1)} / (${tf} + ${k} × (1 − ${b} + ${b} × ${docLen}/${avgdl.toFixed(1)})) = ${tf * (k+1)} / ${denom.toFixed(3)}</div>
+      </div>
+      <div class="step-value">${score.toFixed(3)}</div>
+    `;
+    steps.appendChild(step);
+  });
+}
+
+function animateTF() {
+  const steps = document.querySelectorAll('#tf-calc-steps .calc-step');
+  steps.forEach(s => s.classList.remove('visible'));
+  steps.forEach((step, i) => {
+    setTimeout(() => step.classList.add('visible'), i * 500);
+  });
+}
+
+// ===== BM25 FINAL =====
+function initBM25() {
+  const term = "머신러닝";
+  const k = 1.2, b = 0.75;
+  const avgdl = getAvgDL();
+  const df = getDF(term);
+  const idf = calcIDF(df, D);
+
+  const breakdown = document.getElementById('bm25-breakdown');
+  breakdown.innerHTML = '';
+
+  const results = documents.map(doc => {
+    const r = calcBM25(term, doc, k, b);
+    return { ...r, doc };
+  });
+
+  // Breakdown cards
+  const grid = document.createElement('div');
+  grid.className = 'docs-container';
+  results.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'doc-card';
+    card.innerHTML = `
+      <div class="doc-title">${r.doc.title}</div>
+      <div style="font-size:13px; color:#888; margin:8px 0;">
+        TF = <span class="highlight-num">${r.tf}</span> |
+        |doc| = ${r.docLen} |
+        TF Score = <span style="color:#74b9ff;">${r.tfScore.toFixed(3)}</span>
+      </div>
+      <div style="font-size:13px; color:#888;">
+        IDF = <span style="color:#a29bfe;">${r.idf.toFixed(3)}</span>
+      </div>
+      <div style="margin-top:10px; font-size:16px;">
+        BM25 = <span class="score-badge">${r.bm25.toFixed(4)}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+  breakdown.appendChild(grid);
+
+  // Ranking table
+  const sorted = [...results].sort((a, b) => b.bm25 - a.bm25);
+  const tbody = document.getElementById('ranking-body');
+  tbody.innerHTML = '';
+  sorted.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (i === 0) tr.className = 'top';
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td>${r.doc.title}</td>
+      <td>${r.tf}</td>
+      <td>${r.docLen}</td>
+      <td>${r.tfScore.toFixed(3)}</td>
+      <td>${r.idf.toFixed(3)}</td>
+      <td><span class="score-badge">${r.bm25.toFixed(4)}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Bar chart
+  const barContainer = document.getElementById('bm25-bars');
+  barContainer.innerHTML = '';
+  const maxBM25 = Math.max(...results.map(r => r.bm25));
+  sorted.forEach(r => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'bar-wrapper';
+    const h = maxBM25 > 0 ? (r.bm25 / maxBM25) * 180 : 0;
+    wrapper.innerHTML = `
+      <div class="bar" style="height:0px" data-target="${h}">
+        <span class="bar-value">${r.bm25.toFixed(3)}</span>
+      </div>
+      <div class="bar-label">${r.doc.title.replace('Doc ', 'D')}</div>
+    `;
+    barContainer.appendChild(wrapper);
+  });
+}
+
+function animateBM25() {
+  const bars = document.querySelectorAll('#bm25-bars .bar');
+  bars.forEach(bar => bar.style.height = '0px');
+  bars.forEach((bar, i) => {
+    setTimeout(() => {
+      bar.style.height = bar.dataset.target + 'px';
+    }, i * 300);
+  });
+}
+
+// ===== LIVE DEMO =====
+const docColors = ['#6c5ce7', '#00b894', '#e17055', '#0984e3', '#fdcb6e'];
+let prevRanking = null;
+let cycleInterval = null;
+
+const presets = [
+  {
+    name: "📊 기본값",
+    k: 1.2, b: 0.75,
+    desc: "Elasticsearch/Lucene 기본 설정. TF와 문서 길이를 균형 있게 반영합니다."
+  },
+  {
+    name: "📏 길이 무시",
+    k: 1.2, b: 0.0,
+    desc: "b=0 → 문서 길이를 완전히 무시! 긴 문서(Doc 5)가 TF가 높아서 1위로 올라갑니다."
+  },
+  {
+    name: "📐 강한 길이 보정",
+    k: 1.2, b: 1.0,
+    desc: "b=1 → 긴 문서에 강한 페널티. 짧은 문서(Doc 2)가 상대적으로 유리해집니다."
+  },
+  {
+    name: "🔢 TF 극대화",
+    k: 3.0, b: 0.75,
+    desc: "k=3 → TF 포화가 느려져서 단어가 많이 반복된 문서가 압도적으로 유리합니다."
+  },
+  {
+    name: "🎯 TF 무시",
+    k: 0.0, b: 0.75,
+    desc: "k=0 → TF의 영향이 사라짐! 단어 존재 여부만 중요. 모든 매칭 문서가 비슷한 점수."
+  },
+  {
+    name: "⚡ 극단: 순수 빈도",
+    k: 3.0, b: 0.0,
+    desc: "k=3, b=0 → TF만 중요하고 길이 보정 없음. Doc 5(TF=4)가 압도적 1위!"
+  },
+];
+
+function initPresets() {
+  const container = document.getElementById('presets');
+  container.innerHTML = '';
+  presets.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn' + (i === 0 ? ' active' : '');
+    btn.dataset.index = i;
+    btn.innerHTML = `
+      <div class="preset-name">${p.name}</div>
+      <div class="preset-vals">k=${p.k} · b=${p.b}</div>
+    `;
+    btn.onclick = () => applyPreset(i);
+    container.appendChild(btn);
+  });
+}
+
+function applyPreset(index, animate) {
+  const p = presets[index];
+  document.getElementById('demo-k').value = p.k;
+  document.getElementById('demo-b').value = p.b;
+  document.getElementById('demo-k-val').textContent = p.k.toFixed(2);
+  document.getElementById('demo-b-val').textContent = p.b.toFixed(2);
+  document.querySelectorAll('.preset-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === index);
+  });
+  runDemo();
+}
+
+function onSliderChange() {
+  document.getElementById('demo-k-val').textContent = parseFloat(document.getElementById('demo-k').value).toFixed(2);
+  document.getElementById('demo-b-val').textContent = parseFloat(document.getElementById('demo-b').value).toFixed(2);
+  // Deselect presets
+  document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+  runDemo();
+}
+
+function runDemo() {
+  const query = document.getElementById('search-input').value.trim();
+  if (!query) return;
+
+  const k = parseFloat(document.getElementById('demo-k').value);
+  const b = parseFloat(document.getElementById('demo-b').value);
+  const terms = query.split(/\s+/);
+  const avgdl = getAvgDL();
+
+  const results = documents.map((doc, idx) => {
+    let totalBM25 = 0;
+    let totalTF = 0;
+    let totalIDF = 0;
+    let totalTFScore = 0;
+    const matchedTerms = [];
+
+    terms.forEach(term => {
+      const tf = getTF(term, doc);
+      if (tf > 0) {
+        const df = getDF(term);
+        const idf = calcIDF(df, D);
+        const tfScore = calcTFScore(tf, doc.words.length, avgdl, k, b);
+        totalBM25 += idf * tfScore;
+        totalTF += tf;
+        totalIDF += idf;
+        totalTFScore += tfScore;
+        matchedTerms.push({ term, tf });
+      }
+    });
+
+    return { doc, totalBM25, matchedTerms, totalTF, totalIDF, totalTFScore, idx };
+  });
+
+  const sorted = [...results].sort((a, b) => b.totalBM25 - a.totalBM25);
+
+  // Build current ranking map: docId -> rank
+  const currentRanking = {};
+  sorted.forEach((r, i) => currentRanking[r.doc.id] = i);
+
+  // Explanation
+  const explainEl = document.getElementById('demo-explain');
+  const activePreset = document.querySelector('.preset-btn.active');
+  if (activePreset) {
+    const idx = parseInt(activePreset.dataset.index);
+    explainEl.innerHTML = `<strong>${presets[idx].name}</strong><br>${presets[idx].desc}`;
+    explainEl.style.display = '';
+  } else {
+    explainEl.innerHTML = `<strong>k = ${k.toFixed(2)}, b = ${b.toFixed(2)}</strong>`;
+    explainEl.style.display = '';
+  }
+
+  // Race visualization
+  const raceContainer = document.getElementById('race-container');
+  const maxScore = Math.max(...sorted.map(r => r.totalBM25), 0.001);
+
+  if (!raceContainer.children.length) {
+    // Initial build — create rows in document order, we'll reorder with CSS
+    raceContainer.innerHTML = '';
+    results.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'race-row';
+      row.id = `race-row-${r.doc.id}`;
+      row.innerHTML = `
+        <div class="race-rank" id="race-rank-${r.doc.id}"></div>
+        <div class="race-label">${r.doc.title}<br>
+          <span style="font-size:11px; color:#888;">TF=${r.totalTF} | 길이=${r.doc.words.length}</span>
+        </div>
+        <div class="race-bar-bg">
+          <div class="race-bar-fill" id="race-fill-${r.doc.id}"
+               style="background: ${docColors[i]}; width:0%"></div>
+        </div>
+        <div class="race-change" id="race-change-${r.doc.id}">—</div>
+      `;
+      raceContainer.appendChild(row);
+    });
+  }
+
+  // Update bars, ranks, order
+  sorted.forEach((r, rank) => {
+    const fill = document.getElementById(`race-fill-${r.doc.id}`);
+    const pct = maxScore > 0 ? (r.totalBM25 / maxScore) * 100 : 0;
+    fill.style.width = pct + '%';
+    fill.textContent = r.totalBM25.toFixed(3);
+
+    const rankEl = document.getElementById(`race-rank-${r.doc.id}`);
+    rankEl.textContent = rank + 1;
+    rankEl.className = `race-rank r${rank + 1}`;
+
+    // Change indicator
+    const changeEl = document.getElementById(`race-change-${r.doc.id}`);
+    if (prevRanking && prevRanking[r.doc.id] !== undefined) {
+      const diff = prevRanking[r.doc.id] - rank;
+      if (diff > 0) {
+        changeEl.textContent = `▲${diff}`;
+        changeEl.className = 'race-change up';
+        rankEl.classList.add('rank-flash');
+        setTimeout(() => rankEl.classList.remove('rank-flash'), 700);
+      } else if (diff < 0) {
+        changeEl.textContent = `▼${Math.abs(diff)}`;
+        changeEl.className = 'race-change down';
+      } else {
+        changeEl.textContent = '—';
+        changeEl.className = 'race-change same';
+      }
+    }
+
+    // Reorder rows visually using CSS order
+    const row = document.getElementById(`race-row-${r.doc.id}`);
+    row.style.order = rank;
+  });
+
+  prevRanking = currentRanking;
+
+  // Detail table
+  const tbody = document.getElementById('demo-body');
+  tbody.innerHTML = '';
+  sorted.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (i === 0 && r.totalBM25 > 0) tr.className = 'top';
+    tr.innerHTML = `
+      <td style="font-weight:bold;">${i + 1}</td>
+      <td>${r.doc.title}</td>
+      <td>${r.totalTF}</td>
+      <td>${r.doc.words.length}</td>
+      <td>${r.totalTFScore.toFixed(3)}</td>
+      <td>${r.totalIDF.toFixed(3)}</td>
+      <td><span class="score-badge">${r.totalBM25.toFixed(4)}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function animatePresetCycle() {
+  const btn = document.getElementById('cycle-btn');
+  if (cycleInterval) {
+    clearInterval(cycleInterval);
+    cycleInterval = null;
+    btn.textContent = '모든 시나리오 자동 재생 ▶';
+    return;
+  }
+  btn.textContent = '⏹ 정지';
+  let idx = 0;
+  applyPreset(idx);
+  cycleInterval = setInterval(() => {
+    idx = (idx + 1) % presets.length;
+    applyPreset(idx);
+    if (idx === presets.length - 1) {
+      // One more cycle then stop? No, keep going.
+    }
+  }, 2000);
+}
+
+// Init
+initIntro();
+</script>
+</body>
+</html>
