@@ -1,4 +1,4 @@
-# GraphRAG & MCP 종합 학습 문서
+# GraphRAG & MCP
 
 > KDD Cup CRAG 벤치마크 기반의 GraphRAG 파이프라인 구축 및 MCP를 활용한 확장 가이드
 
