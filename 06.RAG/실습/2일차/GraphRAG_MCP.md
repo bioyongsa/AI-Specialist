@@ -1,7 +1,7 @@
-# 📚 GraphRAG & MCP 완전 정리
+# 📚 GraphRAG & MCP
 
 > **KDD Cup CRAG (Comprehensive RAG Benchmark)** 기반의 RAG 시스템 구축 실습  
-> 단계적으로 RAG 시스템을 발전시키고, 최종적으로 MCP(Model Context Protocol) 기반으로 확장하는 전 과정을 다룬다.
+> 단계적으로 RAG 시스템을 발전시키고, 최종적으로 MCP(Model Context Protocol) 기반으로 확장..
 
 ---
 
