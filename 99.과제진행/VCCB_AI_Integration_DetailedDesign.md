@@ -675,12 +675,44 @@ AI 추론이 Call Task 내에서 직접 수행되므로, 추론 소요 시간이
 
 ```
 측정 방법:
-  clock_gettime(CLOCK_MONOTONIC, &t_start)
-  [추론 실행]
-  clock_gettime(CLOCK_MONOTONIC, &t_end)
-  latency_us = (t_end.tv_nsec - t_start.tv_nsec) / 1000
 
-측정 결과를 AI Client 통계 구조체에 누적하고
+[시나리오 A] (ONNX Runtime)
+clock_gettime(CLOCK_MONOTONIC, &t_start);
+
+// ONNX Runtime Session 실행
+session->Run(
+    runOptions,
+    inputNames,   // {"seq", "static"}
+    inputTensors, // Feature 벡터를 담은 OrtValue 배열
+    2,
+    outputNames,  // {"resume_prob", "resume_time"}
+    outputTensors,
+    2
+);
+
+clock_gettime(CLOCK_MONOTONIC, &t_end);
+latency_us = (t_end.tv_nsec - t_start.tv_nsec) / 1000
+
+[시나리오 B] (C++ 직접 포팅)
+clock_gettime(CLOCK_MONOTONIC, &t_start);
+
+// LSTM 순전파 (시퀀스 10개 처리)
+for (int t = 0; t < SEQ_LEN; t++)
+{
+    // input gate, forget gate, cell gate, output gate 계산
+    // h_t, c_t 갱신
+}
+
+// Static Feature MLP 통과
+
+// 두 결과 합쳐서 Output Head 계산
+// resume_prob = sigmoid(출력)
+// resume_time = linear(출력)
+
+clock_gettime(CLOCK_MONOTONIC, &t_end);
+latency_us = (t_end.tv_nsec - t_start.tv_nsec) / 1000
+
+==> 측정 결과를 AI Client 통계 구조체에 누적하고
 2-6의 상태 출력 함수에서 평균값으로 확인
 ```
 
