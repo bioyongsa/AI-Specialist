@@ -1,38 +1,205 @@
+sangku@Redhat:8.10:26b_zzz_vzw:onnxruntime_build $ cmake ~/onnx_test/onnxruntime/cmake \
+e \
+ -DONNX_USE_>  -DCMAKE_BUILD_TYPE=Release \
+>  -DONNX_USE_LITE_PROTO=ON \
+UILD_SHARED_LIB=>  -Donnxruntime_BUILD_SHARED_LIB=OFF \
+>  -Donnxruntime_BUILD_UNIT_TESTS=OFF \
+>  -Donnxruntime_USE_FULL_PROTOBUF=OFF \
+>  -DCMAKE_CXX_FLAGS="-fno-rtti" \
+>  -DFETCHCONTENT_FULLY_DISCONNECTED=OFF \
+>  -DCMAKE_INSTALL_PREFIX=~/onnx_test/onnxruntime_install
+CMake Deprecation Warning at CMakeLists.txt:14 (cmake_policy):
+  The OLD behavior for policy CMP0104 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- The C compiler identification is GNU 8.5.0
+-- The CXX compiler identification is GNU 8.5.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /usr/bin/cc
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test HAS_NOERROR
+-- Performing Test HAS_NOERROR - Success
+-- Performing Test COMPILER_SUPPORT_MF16C
+-- Performing Test COMPILER_SUPPORT_MF16C - Success
+-- Performing Test COMPILER_SUPPORT_FMA
+-- Performing Test COMPILER_SUPPORT_FMA - Success
+-- Performing Test COMPILER_SUPPORT_AVX
+-- Performing Test COMPILER_SUPPORT_AVX - Success
+Building ONNX Runtime for x86_64 CPU ARCH
+-- Performing Test onnxruntime_HAVE_BUILTIN_ATOMICS
+-- Performing Test onnxruntime_HAVE_BUILTIN_ATOMICS - Success
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE
+-- Performing Test Iconv_IS_BUILT_IN
+-- Performing Test Iconv_IS_BUILT_IN - Success
+-- Found Iconv: built in to C library
+-- Found Patch: /usr/bin/patch
+Patch found: /usr/bin/patch
+Loading Dependencies URLs ...
+Loading Dependencies ...
+[ 11%] Creating directories for 'abseil_cpp-populate'
+[ 22%] Performing download step (download, verify and extract) for 'abseil_cpp-populate'
+-- Downloading...
+   dst='/home/sangku/onnx_test/onnxruntime_build/_deps/abseil_cpp-subbuild/abseil_cpp-populate-prefix/src/20240116.0.zip'
+   timeout='none'
+   inactivity timeout='none'
+-- Using src='https://github.com/abseil/abseil-cpp/archive/refs/tags/20240116.0.zip'
+-- [download 0% complete]
+-- [download 1% complete]
+-- [download 2% complete]
+-- [download 3% complete]
+-- [download 4% complete]
+-- [download 5% complete]
+-- [download 6% complete]
+-- [download 7% complete]
+-- [download 8% complete]
+-- [download 9% complete]
+-- [download 10% complete]
+-- [download 11% complete]
+-- [download 12% complete]
+-- [download 13% complete]
+-- [download 14% complete]
+-- [download 15% complete]
+-- [download 16% complete]
+-- [download 17% complete]
+-- [download 18% complete]
+-- [download 19% complete]
+-- [download 20% complete]
+-- [download 21% complete]
+-- [download 22% complete]
+-- [download 23% complete]
+-- [download 24% complete]
+-- [download 25% complete]
+-- [download 26% complete]
+-- [download 27% complete]
+-- [download 28% complete]
+-- [download 29% complete]
+-- [download 30% complete]
+-- [download 31% complete]
+-- [download 32% complete]
+-- [download 33% complete]
+-- [download 34% complete]
+-- [download 35% complete]
+-- [download 36% complete]
+-- [download 37% complete]
+-- [download 38% complete]
+-- [download 39% complete]
+-- [download 40% complete]
+-- [download 41% complete]
+-- [download 42% complete]
+-- [download 43% complete]
+-- [download 44% complete]
+-- [download 45% complete]
+-- [download 46% complete]
+-- [download 47% complete]
+-- [download 48% complete]
+-- [download 49% complete]
+-- [download 50% complete]
+-- [download 51% complete]
+-- [download 52% complete]
+-- [download 53% complete]
+-- [download 54% complete]
+-- [download 55% complete]
+-- [download 56% complete]
+-- [download 57% complete]
+-- [download 58% complete]
+-- [download 59% complete]
+-- [download 60% complete]
+-- [download 61% complete]
+-- [download 62% complete]
+-- [download 63% complete]
+-- [download 64% complete]
+-- [download 65% complete]
+-- [download 66% complete]
+-- [download 67% complete]
+-- [download 68% complete]
+-- [download 69% complete]
+-- [download 70% complete]
+-- [download 71% complete]
+-- [download 72% complete]
+-- [download 73% complete]
+-- [download 74% complete]
+-- [download 75% complete]
+-- [download 76% complete]
+-- [download 77% complete]
+-- [download 78% complete]
+-- [download 79% complete]
+-- [download 80% complete]
+-- [download 81% complete]
+-- [download 82% complete]
+-- [download 83% complete]
+-- [download 84% complete]
+-- [download 85% complete]
+-- [download 86% complete]
+-- [download 87% complete]
+-- [download 88% complete]
+-- [download 89% complete]
+-- [download 90% complete]
+-- [download 91% complete]
+-- [download 92% complete]
+-- [download 93% complete]
+-- [download 94% complete]
+-- [download 95% complete]
+-- [download 96% complete]
+-- [download 97% complete]
+-- [download 98% complete]
+-- [download 99% complete]
+-- [download 100% complete]
 -- verifying file...
-       file='/home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-subbuild/google_nsync-populate-prefix/src/1.26.0.zip'
+       file='/home/sangku/onnx_test/onnxruntime_build/_deps/abseil_cpp-subbuild/abseil_cpp-populate-prefix/src/20240116.0.zip'
 -- Downloading... done
 -- extracting...
-     src='/home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-subbuild/google_nsync-populate-prefix/src/1.26.0.zip'
-     dst='/home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-src'
+     src='/home/sangku/onnx_test/onnxruntime_build/_deps/abseil_cpp-subbuild/abseil_cpp-populate-prefix/src/20240116.0.zip'
+     dst='/home/sangku/onnx_test/onnxruntime_build/_deps/abseil_cpp-src'
 -- extracting... [tar xfz]
 -- extracting... [analysis]
 -- extracting... [rename]
-CMake Error at google_nsync-subbuild/google_nsync-populate-prefix/src/google_nsync-populate-stamp/extract-google_nsync-populate.cmake:58 (file):
+CMake Error at abseil_cpp-subbuild/abseil_cpp-populate-prefix/src/abseil_cpp-populate-stamp/extract-abseil_cpp-populate.cmake:58 (file):
   file RENAME failed to rename
 
-    /home/sangku/onnx_test/onnxruntime_build/_deps/ex-google_nsync-populate1234/nsync-1.26.0
+    /home/sangku/onnx_test/onnxruntime_build/_deps/ex-abseil_cpp-populate1234/abseil-cpp-20240116.0
 
   to
 
-    /home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-src
+    /home/sangku/onnx_test/onnxruntime_build/_deps/abseil_cpp-src
 
   because: Permission denied
 
 
 
-gmake[2]: *** [CMakeFiles/google_nsync-populate.dir/build.make:102: google_nsync-populate-prefix/src/google_nsync-populate-stamp/google_nsync-populate-download] Error 1
-gmake[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/google_nsync-populate.dir/all] Error 2
+gmake[2]: *** [CMakeFiles/abseil_cpp-populate.dir/build.make:102: abseil_cpp-populate-prefix/src/abseil_cpp-populate-stamp/abseil_cpp-populate-download] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/abseil_cpp-populate.dir/all] Error 2
 gmake: *** [Makefile:91: all] Error 2
 
 CMake Error at /usr/share/cmake/Modules/FetchContent.cmake:1622 (message):
-  Build step for google_nsync failed: 2
+  Build step for abseil_cpp failed: 2
 Call Stack (most recent call first):
   /usr/share/cmake/Modules/FetchContent.cmake:1762:EVAL:2 (__FetchContent_directPopulate)
   /usr/share/cmake/Modules/FetchContent.cmake:1762 (cmake_language)
   external/helper_functions.cmake:139 (FetchContent_Populate)
-  external/onnxruntime_external_deps.cmake:346 (onnxruntime_fetchcontent_makeavailable)
+  external/abseil-cpp.cmake:33 (onnxruntime_fetchcontent_makeavailable)
+  external/onnxruntime_external_deps.cmake:32 (include)
   CMakeLists.txt:586 (include)
 
 
 -- Configuring incomplete, errors occurred!
-sangku@Redhat:8.10:26b_zzz_vzw:onnxruntime_build $
