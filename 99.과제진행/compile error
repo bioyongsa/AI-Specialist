@@ -1,0 +1,281 @@
+sangku@Redhat:8.10:26b_zzz_vzw:VCCB $ make -f Makefile.sim -n 2>&1
+echo "  Compiling OBJ/ACPF/xcc/CdbDalReader.o ."
+mkinstalldirs OBJ/ACPF/xcc
+/usr/bin/g++ -Wlogical-op -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wstack-protector -Wswitch-default -Wconversion -Wsign-conversion -Walloca -Walloc-zero -Wduplicated-branches -Wduplicated-cond -Wnull-dereference -Wshadow=compatible-local -Wshadow=local -Wshift-overflow -Wfloat-conversion -Wall -Wextra -Wformat -Wwrite-strings -Wunused-const-variable -Wswitch-default -Wstack-protector -Wsign-conversion -Wshift-overflow -Wshadow=local -Wshadow=compatible-local -Wshadow -Wredundant-decls -Wnull-dereference -Wmissing-include-dirs -Wlogical-op -Wfloat-conversion -Wduplicated-cond -Wduplicated-branches -Wdouble-promotion -Wconversion -Walloca -Walloc-zero -g -fno-rtti -O2 -D__XCC__ -D__XEONC_64__ -DCONFIG_CP_XEONC_64 -DCONFIG_CP_FDSETSIZE -DCONFIG_CP_ZEBOS -DCONFIG_CP_VRRP -DCONFIG_CP_QOS -DCONFIG_TCP_MD5_AUTH -DCONFIG_CP_DPDK_SOCKETS -DCONFIG_SCTP_PF -D_MDS_SUPPORT_NANOMSG_ -D_BIPC_3600K_SUPPORT_ -DCONFIG_CP_SOCKET_TYPES -D__NGRRC_V1_2__ -DNEW_HOST_SIM -DNEW_HOST_SIM_PLD -DCONFD_LIB_API_VSN=0x07070f00 -DOAM_API_FM_INTERFACE_PROVIDE -D__SVR26B__ -D__ACPF__ -D__LINUX__ -D_REENTRANT -D__IPV4__ -D_V6_BSS_ -D__ACPF_EMIT_H__ -D__ACPF__ -DMW_ACCESS -D__VZW__ -D__VNF_EMIT_H__ -D__VNF__ -D__YANG_MODEL__ -D__5G_GEN__ -D__VARIANT_PLD__ -DSVR26B -D__DBI_REDIS__ -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/MGMT/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/READ/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/SUBSCRIBE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_COM/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_COM/STAT/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/SON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/HO/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/MRDC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/RRC_INACTIVE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/RRE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/MEAS/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/CA/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/RESOURCE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/CAPA/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/OTHER/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MAIN/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/E1AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/F1AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/NGAP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/NRRRC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/RRC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/S1AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/X2AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/XNAP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_RSC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/INTERFACE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/HANDLE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_DC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_SA/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_MEAS/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_HO/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_COMM/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/CallNrDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/CallNrInterfaceInternal/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/FLAVOR_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/UTIL_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/VccbItscpDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/HalDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/SysCommonDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Platform/SYS_MW_LIB/PDM/PDMLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/Base/OamFramework/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/OSABLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/DAL/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/FTPES/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/UPMLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/CallNrCommonDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/CallNrInterfaceExternal/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_E1AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_F1AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_LIB/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_LPP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_NGAP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_NRPPA/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_NRRRC/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_RRC/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_S1AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_X2AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_XNAP/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/DR_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_E1AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_ERRC/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_F1AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_LPP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_NGAP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_NRPPA/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_NRRRC/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_S1AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_X2AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_XNAP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/SHM_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/DBG_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/FMLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/DATALINK_LIB/PDCP_C/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/DATALINK_LIB/SECURITY/INTEL -isystem/p4_ws/sangku/26b_zzz_vzw/3rdParty/LIBSECU/INTEL/self_lib/hdr -I/p4_ws/sangku/26b_zzz_vzw/Middleware/FEATURE_LIB/NetFeature -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/hdr -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/CallNrInterfaceExternal/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/OamCommonMessage/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/OamCommonConfig/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/OamCommonData/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/SWMGT/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/DBI/include -isystem/p4_ws/sangku/26b_zzz_vzw/3rdParty/LIBVALKEY/0.0.0/include/valkey -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/include -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/SysDefine/include/ -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/SysCommonDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Data/PLD -I/p4_ws/sangku/26b_zzz_vzw -I/p4_ws/sangku/26b_zzz_vzw/Configs/Feature/ACPF/GNB_CU_CP/ -I/p4_ws/sangku/26b_zzz_vzw/Data/PLD/Rel_Container -DCP_BS_GROUP -std=c++17 -Wno-register -fdiagnostics-show-option -Wall -Wextra -include SecProductFeature.h -o OBJ/ACPF/xcc/CdbDalReader.o -c  ./VCCB_CDB/READ/src/CdbDalReader.cpp
+echo "  Compiling OBJ/ACPF/xcc/CdbDalSubscription.o ."
+mkinstalldirs OBJ/ACPF/xcc
+/usr/bin/g++ -Wlogical-op -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wstack-protector -Wswitch-default -Wconversion -Wsign-conversion -Walloca -Walloc-zero -Wduplicated-branches -Wduplicated-cond -Wnull-dereference -Wshadow=compatible-local -Wshadow=local -Wshift-overflow -Wfloat-conversion -Wall -Wextra -Wformat -Wwrite-strings -Wunused-const-variable -Wswitch-default -Wstack-protector -Wsign-conversion -Wshift-overflow -Wshadow=local -Wshadow=compatible-local -Wshadow -Wredundant-decls -Wnull-dereference -Wmissing-include-dirs -Wlogical-op -Wfloat-conversion -Wduplicated-cond -Wduplicated-branches -Wdouble-promotion -Wconversion -Walloca -Walloc-zero -g -fno-rtti -O2 -D__XCC__ -D__XEONC_64__ -DCONFIG_CP_XEONC_64 -DCONFIG_CP_FDSETSIZE -DCONFIG_CP_ZEBOS -DCONFIG_CP_VRRP -DCONFIG_CP_QOS -DCONFIG_TCP_MD5_AUTH -DCONFIG_CP_DPDK_SOCKETS -DCONFIG_SCTP_PF -D_MDS_SUPPORT_NANOMSG_ -D_BIPC_3600K_SUPPORT_ -DCONFIG_CP_SOCKET_TYPES -D__NGRRC_V1_2__ -DNEW_HOST_SIM -DNEW_HOST_SIM_PLD -DCONFD_LIB_API_VSN=0x07070f00 -DOAM_API_FM_INTERFACE_PROVIDE -D__SVR26B__ -D__ACPF__ -D__LINUX__ -D_REENTRANT -D__IPV4__ -D_V6_BSS_ -D__ACPF_EMIT_H__ -D__ACPF__ -DMW_ACCESS -D__VZW__ -D__VNF_EMIT_H__ -D__VNF__ -D__YANG_MODEL__ -D__5G_GEN__ -D__VARIANT_PLD__ -DSVR26B -D__DBI_REDIS__ -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/MGMT/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/READ/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/SUBSCRIBE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_CDB/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_COM/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_COM/STAT/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/SON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/HO/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/MRDC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/RRC_INACTIVE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/RRE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/MEAS/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/CA/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/RESOURCE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/CAPA/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_FEAT/OTHER/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MAIN/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/COMMON/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/E1AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/F1AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/NGAP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/NRRRC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/RRC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/S1AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/X2AP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_MSG/XNAP/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_RSC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/INTERFACE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/HANDLE/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_DC/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_SA/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_MEAS/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_HO/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB/VCCB_STATE/FEAT_COMM/hdr -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/CallNrDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/CallNrInterfaceInternal/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/FLAVOR_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/UTIL_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/VccbItscpDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/HalDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/SysCommonDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Platform/SYS_MW_LIB/PDM/PDMLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/Base/OamFramework/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/OSABLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/DAL/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/FTPES/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/UPMLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/CallNrCommonDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/CallNrInterfaceExternal/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_E1AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_F1AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_LIB/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_LPP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_NGAP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_NRPPA/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_NRRRC/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_RRC/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_S1AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_X2AP/include -isystem/p4_ws/sangku/26b_zzz_vzw/Generated/CallNrAsn/ASN_XNAP/include -I/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Base/DR_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_E1AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_ERRC/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_F1AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_LPP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_NGAP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_NRPPA/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_NRRRC/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_S1AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_X2AP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/IF_XNAP/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/SHM_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/DBG_LIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/OAM_LIB/FMLIB/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/DATALINK_LIB/PDCP_C/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/DATALINK_LIB/SECURITY/INTEL -isystem/p4_ws/sangku/26b_zzz_vzw/3rdParty/LIBSECU/INTEL/self_lib/hdr -I/p4_ws/sangku/26b_zzz_vzw/Middleware/FEATURE_LIB/NetFeature -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/hdr -I/p4_ws/sangku/26b_zzz_vzw/Middleware/NR_CALL_LIB/CallNrInterfaceExternal/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/OamCommonMessage/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/OamCommonConfig/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/OamCommonData/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/SWMGT/include -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/DBI/include -isystem/p4_ws/sangku/26b_zzz_vzw/3rdParty/LIBVALKEY/0.0.0/include/valkey -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/include -I/p4_ws/sangku/26b_zzz_vzw/Platform/Base/SysDefine/include/ -I/p4_ws/sangku/26b_zzz_vzw/Middleware/Base/SysCommonDefine/include -I/p4_ws/sangku/26b_zzz_vzw/Data/PLD -I/p4_ws/sangku/26b_zzz_vzw -I/p4_ws/sangku/26b_zzz_vzw/Configs/Feature/ACPF/GNB_CU_CP/ -I/p4_ws/sangku/26b_zzz_vzw/Data/PLD/Rel_Container -DCP_BS_GROUP -std=c++17 -Wno-register -fdiagnostics-show-option -Wall -Wextra -include SecProductFeature.h -o OBJ/ACPF/xcc/CdbDalSubscription.o -c  ./VCCB_CDB/SUBSCRIBE/src/CdbDalSubscription.cpp
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc/libmwinit.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT'
+echo "  Building dynamic library OBJ/ACPF/xcc/libmwinit.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libmwinit.so -o OBJ/ACPF/xcc/libmwinit.so.1.0.1  OBJ/ACPF/xcc/ap_init.o OBJ/ACPF/xcc/ap_init_lib.o
+/usr/bin/install OBJ/ACPF/xcc/libmwinit.so.1.0.1 OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libmwinit.so.1.0.1 > OBJ/ACPF/xcc/libmwinit.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libmwinit.so.1.0.1.map OBJ/ACPF/xcc/libmwinit.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libmwinit.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc OBJ/ACPF/xcc/libmwinit.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libmwinit.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libmwinit.so.1.0.1 libmwinit.so.1; ln -fs ./libmwinit.so.1.0.1 libmwinit.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libmwinit.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libmwinit.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libmwinit.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308/libmwinit.so.xcc OBJ/ACPF/xcc/libmwinit.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libmwinit.so.xcc-3308
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libmwinit.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libmwinit.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc/libmwinit.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MWINIT/OBJ/ACPF/xcc/libmwinit.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc/libhas.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS'
+echo "  Building dynamic library OBJ/ACPF/xcc/libhas.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libhas.so -o OBJ/ACPF/xcc/libhas.so.1.0.1  OBJ/ACPF/xcc/hal_api.o OBJ/ACPF/xcc/hal_backup_thread.o OBJ/ACPF/xcc/hal_data.o OBJ/ACPF/xcc/hal_debug.o OBJ/ACPF/xcc/hal_handler.o OBJ/ACPF/xcc/hal_send.o OBJ/ACPF/xcc/hal_state.o OBJ/ACPF/xcc/hal_state_access.o OBJ/ACPF/xcc/hal_thread.o OBJ/ACPF/xcc/hal_util.o OBJ/ACPF/xcc/has_api.o OBJ/ACPF/xcc/has_api_access.o OBJ/ACPF/xcc/uhal_api.o
+/usr/bin/install OBJ/ACPF/xcc/libhas.so.1.0.1 OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libhas.so.1.0.1 > OBJ/ACPF/xcc/libhas.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libhas.so.1.0.1.map OBJ/ACPF/xcc/libhas.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libhas.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc OBJ/ACPF/xcc/libhas.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libhas.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libhas.so.1.0.1 libhas.so.1; ln -fs ./libhas.so.1.0.1 libhas.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libhas.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libhas.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libhas.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412/libhas.so.xcc OBJ/ACPF/xcc/libhas.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libhas.so.xcc-3412
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libhas.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libhas.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc/libhas.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/HAS/OBJ/ACPF/xcc/libhas.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc/libdus.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS'
+echo "  Building dynamic library OBJ/ACPF/xcc/libdus.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libdus.so -o OBJ/ACPF/xcc/libdus.so.1.0.1  OBJ/ACPF/xcc/dul_buffer.o OBJ/ACPF/xcc/dul_callback_signal.o OBJ/ACPF/xcc/dul_command.o OBJ/ACPF/xcc/dul_connection.o OBJ/ACPF/xcc/dul_dum_access.o OBJ/ACPF/xcc/dul_dumutil.o OBJ/ACPF/xcc/dul_global.o OBJ/ACPF/xcc/dul_init.o OBJ/ACPF/xcc/dul_log.o OBJ/ACPF/xcc/dul_loggroup.o OBJ/ACPF/xcc/dul_logstat.o OBJ/ACPF/xcc/dul_mweno.o OBJ/ACPF/xcc/dul_ntrace.o OBJ/ACPF/xcc/dul_print.o OBJ/ACPF/xcc/dul_redirect.o OBJ/ACPF/xcc/dul_security.o OBJ/ACPF/xcc/dul_signal.o OBJ/ACPF/xcc/dul_sizecare.o OBJ/ACPF/xcc/dul_table.o OBJ/ACPF/xcc/dul_thread.o OBJ/ACPF/xcc/dul_util.o OBJ/ACPF/xcc/dus_command.o OBJ/ACPF/xcc/dus_debug.o OBJ/ACPF/xcc/dus_init.o OBJ/ACPF/xcc/dus_log.o OBJ/ACPF/xcc/dus_ntrace.o OBJ/ACPF/xcc/dus_print.o OBJ/ACPF/xcc/dus_redirect.o OBJ/ACPF/xcc/dus_util.o
+/usr/bin/install OBJ/ACPF/xcc/libdus.so.1.0.1 OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libdus.so.1.0.1 > OBJ/ACPF/xcc/libdus.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libdus.so.1.0.1.map OBJ/ACPF/xcc/libdus.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libdus.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc OBJ/ACPF/xcc/libdus.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libdus.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libdus.so.1.0.1 libdus.so.1; ln -fs ./libdus.so.1.0.1 libdus.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libdus.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libdus.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libdus.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516/libdus.so.xcc OBJ/ACPF/xcc/libdus.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libdus.so.xcc-3516
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libdus.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libdus.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc/libdus.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/DUS/OBJ/ACPF/xcc/libdus.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc/libens.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS'
+echo "  Building dynamic library OBJ/ACPF/xcc/libens.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libens.so -o OBJ/ACPF/xcc/libens.so.1.0.1  OBJ/ACPF/xcc/enl_api.o OBJ/ACPF/xcc/enl_debug.o OBJ/ACPF/xcc/enl_event.o OBJ/ACPF/xcc/enl_handler.o OBJ/ACPF/xcc/enl_timerEmulator.o OBJ/ACPF/xcc/enl_timerPoll.o OBJ/ACPF/xcc/enl_util.o OBJ/ACPF/xcc/ens_api.o OBJ/ACPF/xcc/ens_debug.o OBJ/ACPF/xcc/ens_event.o OBJ/ACPF/xcc/ens_init.o
+/usr/bin/install OBJ/ACPF/xcc/libens.so.1.0.1 OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libens.so.1.0.1 > OBJ/ACPF/xcc/libens.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libens.so.1.0.1.map OBJ/ACPF/xcc/libens.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libens.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc OBJ/ACPF/xcc/libens.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libens.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libens.so.1.0.1 libens.so.1; ln -fs ./libens.so.1.0.1 libens.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libens.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libens.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libens.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626/libens.so.xcc OBJ/ACPF/xcc/libens.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libens.so.xcc-3626
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libens.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libens.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc/libens.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/ENS/OBJ/ACPF/xcc/libens.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc/libmds.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS'
+echo "  Building dynamic library OBJ/ACPF/xcc/libmds.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libmds.so -o OBJ/ACPF/xcc/libmds.so.1.0.1  OBJ/ACPF/xcc/mdl_address.o OBJ/ACPF/xcc/mdl_address_conf.o OBJ/ACPF/xcc/mdl_address_util.o OBJ/ACPF/xcc/mdl_attr.o OBJ/ACPF/xcc/mdl_bind.o OBJ/ACPF/xcc/mdl_bipc.o OBJ/ACPF/xcc/mdl_close.o OBJ/ACPF/xcc/mdl_dns.o OBJ/ACPF/xcc/mdl_dscp.o OBJ/ACPF/xcc/mdl_fis.o OBJ/ACPF/xcc/mdl_handleopt.o OBJ/ACPF/xcc/mdl_init.o OBJ/ACPF/xcc/mdl_internal_ip.o OBJ/ACPF/xcc/mdl_msg_queue.o OBJ/ACPF/xcc/mdl_nano.o OBJ/ACPF/xcc/mdl_ndp.o OBJ/ACPF/xcc/mdl_netlink.o OBJ/ACPF/xcc/mdl_node_ip.o OBJ/ACPF/xcc/mdl_open.o OBJ/ACPF/xcc/mdl_packet.o OBJ/ACPF/xcc/mdl_recv.o OBJ/ACPF/xcc/mdl_sctp.o OBJ/ACPF/xcc/mdl_select.o OBJ/ACPF/xcc/mdl_send.o OBJ/ACPF/xcc/mdl_shm_posix.o OBJ/ACPF/xcc/mdl_tcp.o OBJ/ACPF/xcc/mdl_toolchain_wrapper.o OBJ/ACPF/xcc/mdl_util.o OBJ/ACPF/xcc/mdl_vnfc_table.o OBJ/ACPF/xcc/mdl_vsd_table.o OBJ/ACPF/xcc/mds_address.o OBJ/ACPF/xcc/mds_attr.o OBJ/ACPF/xcc/mds_bipc.o OBJ/ACPF/xcc/mds_close.o OBJ/ACPF/xcc/mds_debug.o OBJ/ACPF/xcc/mds_debug_fis.o OBJ/ACPF/xcc/mds_dns.o OBJ/ACPF/xcc/mds_dscp.o OBJ/ACPF/xcc/mds_handleopt.o OBJ/ACPF/xcc/mds_init.o OBJ/ACPF/xcc/mds_kas.o OBJ/ACPF/xcc/mds_mcast.o OBJ/ACPF/xcc/mds_nano.o OBJ/ACPF/xcc/mds_ndp.o OBJ/ACPF/xcc/mds_open.o OBJ/ACPF/xcc/mds_packet.o OBJ/ACPF/xcc/mds_recv.o OBJ/ACPF/xcc/mds_select.o OBJ/ACPF/xcc/mds_send.o OBJ/ACPF/xcc/mds_tcp.o OBJ/ACPF/xcc/mds_util.o OBJ/ACPF/xcc/mds_vnfc_table.o OBJ/ACPF/xcc/mds_vsd_table.o
+/usr/bin/install OBJ/ACPF/xcc/libmds.so.1.0.1 OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libmds.so.1.0.1 > OBJ/ACPF/xcc/libmds.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libmds.so.1.0.1.map OBJ/ACPF/xcc/libmds.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libmds.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc OBJ/ACPF/xcc/libmds.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libmds.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libmds.so.1.0.1 libmds.so.1; ln -fs ./libmds.so.1.0.1 libmds.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libmds.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libmds.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libmds.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730/libmds.so.xcc OBJ/ACPF/xcc/libmds.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libmds.so.xcc-3730
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libmds.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libmds.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc/libmds.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MDS/OBJ/ACPF/xcc/libmds.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc/libths.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS'
+echo "  Building dynamic library OBJ/ACPF/xcc/libths.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libths.so -o OBJ/ACPF/xcc/libths.so.1.0.1  OBJ/ACPF/xcc/thl_affinity.o OBJ/ACPF/xcc/thl_circularList.o OBJ/ACPF/xcc/thl_condition.o OBJ/ACPF/xcc/thl_init.o OBJ/ACPF/xcc/thl_linkedList.o OBJ/ACPF/xcc/thl_mlock.o OBJ/ACPF/xcc/thl_semaphore.o OBJ/ACPF/xcc/thl_task.o OBJ/ACPF/xcc/thl_threadPoolBlockingMonitor.o OBJ/ACPF/xcc/thl_threadPoolDeletionThread.o OBJ/ACPF/xcc/thl_threadPoolManager.o OBJ/ACPF/xcc/thl_threadPoolManagerMQ.o OBJ/ACPF/xcc/thl_threadPoolQueueManager.o OBJ/ACPF/xcc/thl_threadPoolWorkingThread.o OBJ/ACPF/xcc/thl_util.o OBJ/ACPF/xcc/ths_condition.o OBJ/ACPF/xcc/ths_debug.o OBJ/ACPF/xcc/ths_init.o OBJ/ACPF/xcc/ths_lock.o OBJ/ACPF/xcc/ths_task.o OBJ/ACPF/xcc/ths_threadPool.o OBJ/ACPF/xcc/ths_threadPoolMQ.o
+/usr/bin/install OBJ/ACPF/xcc/libths.so.1.0.1 OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libths.so.1.0.1 > OBJ/ACPF/xcc/libths.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libths.so.1.0.1.map OBJ/ACPF/xcc/libths.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libths.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc OBJ/ACPF/xcc/libths.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libths.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libths.so.1.0.1 libths.so.1; ln -fs ./libths.so.1.0.1 libths.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libths.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libths.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libths.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834/libths.so.xcc OBJ/ACPF/xcc/libths.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libths.so.xcc-3834
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libths.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libths.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc/libths.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/THS/OBJ/ACPF/xcc/libths.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc/libmfs.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS'
+echo "  Building dynamic library OBJ/ACPF/xcc/libmfs.so."
+mkdir -p OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938
+mkinstalldirs OBJ/ACPF/xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin /p4_ws/sangku/26b_zzz_vzw/Output/ne/config /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+/usr/bin/gcc   -Wl,-rpath,/lib64_nr -lrt -lpthread  -Wl,-rpath,/lib64_nr -shared -Wl,-soname,libmfs.so -o OBJ/ACPF/xcc/libmfs.so.1.0.1  OBJ/ACPF/xcc/mfl_accessconf.o OBJ/ACPF/xcc/mfl_file.o OBJ/ACPF/xcc/mfl_init.o OBJ/ACPF/xcc/mfl_mmap.o OBJ/ACPF/xcc/mfl_netutil.o OBJ/ACPF/xcc/mfl_pba.o OBJ/ACPF/xcc/mfl_sem.o OBJ/ACPF/xcc/mfl_shm.o OBJ/ACPF/xcc/mfl_signal.o OBJ/ACPF/xcc/mfl_system.o OBJ/ACPF/xcc/mfl_version.o OBJ/ACPF/xcc/mfl_vrnetutil.o OBJ/ACPF/xcc/mfs_core.o OBJ/ACPF/xcc/mfs_debug.o OBJ/ACPF/xcc/mfs_file.o OBJ/ACPF/xcc/mfs_grpc.o OBJ/ACPF/xcc/mfs_init.o OBJ/ACPF/xcc/mfs_inservice.o OBJ/ACPF/xcc/mfs_mmap.o OBJ/ACPF/xcc/mfs_mount.o OBJ/ACPF/xcc/mfs_netutil.o OBJ/ACPF/xcc/mfs_pba.o OBJ/ACPF/xcc/mfs_safefunc.o OBJ/ACPF/xcc/mfs_sem.o OBJ/ACPF/xcc/mfs_shm.o OBJ/ACPF/xcc/mfs_signal.o OBJ/ACPF/xcc/mfs_storage.o OBJ/ACPF/xcc/mfs_system.o OBJ/ACPF/xcc/mfs_time.o OBJ/ACPF/xcc/mfs_version.o OBJ/ACPF/xcc/mfs_vrnetutil.o
+/usr/bin/install OBJ/ACPF/xcc/libmfs.so.1.0.1 OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc
+/usr/bin/nm -anl OBJ/ACPF/xcc/libmfs.so.1.0.1 > OBJ/ACPF/xcc/libmfs.so.1.0.1.map
+cp -p -f OBJ/ACPF/xcc/libmfs.so.1.0.1.map OBJ/ACPF/xcc/libmfs.so.xcc.map
+/usr/bin/install OBJ/ACPF/xcc/libmfs.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cp -p -f OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc OBJ/ACPF/xcc/libmfs.so.xcc.nostrip
+/usr/bin/install OBJ/ACPF/xcc/libmfs.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+cd OBJ/ACPF/xcc && ( ln -fs ./libmfs.so.1.0.1 libmfs.so.1; ln -fs ./libmfs.so.1.0.1 libmfs.so )
+/usr/bin/strip OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mksigning OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever libmfs.so.xcc 26 B 0 99 8 1 1 OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/
+/usr/bin/install OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin/libmfs.so.xcc
+echo "                        ******************************"
+echo "                           OBJ/ACPF/xcc/libmfs.so"
+echo "                        ******************************"
+mv OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938/libmfs.so.xcc OBJ/ACPF/xcc/libmfs.so.xcc
+rm -rf OBJ/ACPF/xcc/signtmp-libmfs.so.xcc-3938
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc
+/usr/bin/install OBJ/ACPF/xcc/libmfs.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libmfs.so
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc/libmfs.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/MFS/OBJ/ACPF/xcc/libmfs.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Dynamic Library /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc/libnanomsg.so at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+make[1]: Entering directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD'
+cd OBJ/ACPF/xcc/build/dynamic && `which ninja`
+/usr/bin/install OBJ/ACPF/xcc/build/dynamic/libnanomsg.so.5.1.0 OBJ/ACPF/xcc/libnanomsg.so.xcc
+/usr/bin/install OBJ/ACPF/xcc/libnanomsg.so.xcc OBJ/ACPF/xcc/libnanomsg.so.xcc.nostrip
+/usr/bin/nm -anl OBJ/ACPF/xcc/build/dynamic/libnanomsg.so.5.1.0 > OBJ/ACPF/xcc/libnanomsg.so.xcc.map
+ln -fs libnanomsg.so.xcc.nostrip OBJ/ACPF/xcc/libnanomsg.so.5.1.0
+ln -fs libnanomsg.so.5.1.0 OBJ/ACPF/xcc/libnanomsg.so
+/usr/bin/strip OBJ/ACPF/xcc/libnanomsg.so.xcc && mksigning OBJ/ACPF/xcc/libnanomsg.so.xcc OBJ/ACPF/xcc/libnanomsg.so.xcc "6 2"
+/p4_ws/sangku/26b_zzz_vzw/Build/util/mkfilever OBJ/ACPF/xcc/libnanomsg.so.xcc 26 B 0 99 8 1 1 ./
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin && /usr/bin/install OBJ/ACPF/xcc/libnanomsg.so.xcc /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map && /usr/bin/install OBJ/ACPF/xcc/libnanomsg.so.xcc.nostrip /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map && \
+/usr/bin/install OBJ/ACPF/xcc/libnanomsg.so.xcc.map /p4_ws/sangku/26b_zzz_vzw/Output/ne/nostrip_map
+gzip -cn OBJ/ACPF/xcc/libnanomsg.so.xcc > OBJ/ACPF/xcc/libnanomsg.so.xcc.gz && /usr/bin/install OBJ/ACPF/xcc/libnanomsg.so.xcc.gz /p4_ws/sangku/26b_zzz_vzw/Output/ne/bin
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc && /usr/bin/install OBJ/ACPF/xcc/libnanomsg.so.xcc /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libnanomsg.so && ln -fs libnanomsg.so /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/mwlib/xcc/libnanomsg.so.5.1.0
+make[1]: Leaving directory '/p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD'
+/usr/bin/nm -anl /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc/libnanomsg.so > /p4_ws/sangku/26b_zzz_vzw/Platform/Base/PalSysLib/3rdParty/NANOMSG_3RD/OBJ/ACPF/xcc/libnanomsg.so.map
+echo; echo "make[0]: Returning directory \`/p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/VCCB'"
+echo "  Checking Static Library /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc/libHasSim.a at $(pwd)"
+mkinstalldirs /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc
+if [ -f /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc/../../../Makefile.arch_all ];then \
+        export USER_SUFFIX=xcc;\
+        cd /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc/../../.. && flock -x Makefile.arch_all make -f Makefile.arch_all  RFS_COPY=NONE;\
+else \
+        cd /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc/../../.. && flock -x Makefile.xcc make -f Makefile.xcc  RFS_COPY=NONE;\
+fi
+/bin/sh: line 4: cd: /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc/../../..: No such file or directory
+make: *** [/p4_ws/sangku/26b_zzz_vzw/Build/etc/gccrule.mk:162: /p4_ws/sangku/26b_zzz_vzw/Application/NR_CALL_APP/Tools/SIM/HAS_SIM/OBJ/ACPF/xcc/libHasSim.a] Error 1
+sangku@Redhat:8.10:26b_zzz_vzw:VCCB $
