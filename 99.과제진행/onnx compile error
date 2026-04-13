@@ -1,0 +1,38 @@
+-- verifying file...
+       file='/home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-subbuild/google_nsync-populate-prefix/src/1.26.0.zip'
+-- Downloading... done
+-- extracting...
+     src='/home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-subbuild/google_nsync-populate-prefix/src/1.26.0.zip'
+     dst='/home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-src'
+-- extracting... [tar xfz]
+-- extracting... [analysis]
+-- extracting... [rename]
+CMake Error at google_nsync-subbuild/google_nsync-populate-prefix/src/google_nsync-populate-stamp/extract-google_nsync-populate.cmake:58 (file):
+  file RENAME failed to rename
+
+    /home/sangku/onnx_test/onnxruntime_build/_deps/ex-google_nsync-populate1234/nsync-1.26.0
+
+  to
+
+    /home/sangku/onnx_test/onnxruntime_build/_deps/google_nsync-src
+
+  because: Permission denied
+
+
+
+gmake[2]: *** [CMakeFiles/google_nsync-populate.dir/build.make:102: google_nsync-populate-prefix/src/google_nsync-populate-stamp/google_nsync-populate-download] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/google_nsync-populate.dir/all] Error 2
+gmake: *** [Makefile:91: all] Error 2
+
+CMake Error at /usr/share/cmake/Modules/FetchContent.cmake:1622 (message):
+  Build step for google_nsync failed: 2
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/FetchContent.cmake:1762:EVAL:2 (__FetchContent_directPopulate)
+  /usr/share/cmake/Modules/FetchContent.cmake:1762 (cmake_language)
+  external/helper_functions.cmake:139 (FetchContent_Populate)
+  external/onnxruntime_external_deps.cmake:346 (onnxruntime_fetchcontent_makeavailable)
+  CMakeLists.txt:586 (include)
+
+
+-- Configuring incomplete, errors occurred!
+sangku@Redhat:8.10:26b_zzz_vzw:onnxruntime_build $

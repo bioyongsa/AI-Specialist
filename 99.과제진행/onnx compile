@@ -1,6 +1,0 @@
-sangku@Redhat:8.10:26b_zzz_vzw:onnx_test $ /usr/bin/g++ -std=c++17 -fno-rtti -I./onnxruntime-linux-x64-1.18.0/include test_rtti.cpp -L./onnxruntime-linux-x64-1.18.0/lib -lonnxruntime -Wl,-rpath,./onnxruntime-linux-x64-1.18.0/lib -o test_rtti 2>&1
-sangku@Redhat:8.10:26b_zzz_vzw:onnx_test $
-sangku@Redhat:8.10:26b_zzz_vzw:onnx_test $
-sangku@Redhat:8.10:26b_zzz_vzw:onnx_test $ ls -la test_rtti
--rwxrwxrwx 1 sangku sangku 38904  4월 13 19:17 test_rtti
-sangku@Redhat:8.10:26b_zzz_vzw:onnx_test $
