@@ -161,17 +161,16 @@ void FnVCCB_UpdateSvcCfgPriorities(uint8_t gnbNum);
 For each `svcCfgSaEntries[i]` with `service_sa_usage == SVC_CFG_USAGE_USE`:
 
 1. Initialize `bestPriority = WORST_SVC_GRP_PRIORITY` (value 8).
-2. Determine iteration count: if the entry has slices (`numSlice > 0`), iterate once per slice; otherwise iterate once (with no slice constraint).
-3. For each slice iteration, build a `serviceGroupMappingInfo_type`:
-   - `mapInfo.sstSd` = `(SST << 24) | (SD & 0x00FFFFFF)` from the current slice (if slices exist).
-   - `mapInfo.qos5qiMap[q]` = `TRUE` for each 5QI value `q` in the entry's `qos_5qi[]` (where `q < MAX_5QI_VALUE`).
-   - `mapInfo.arpMap[a]` = `TRUE` for each ARP value `a` in the entry's `arp[]` (where `a < MAX_ARP_LEVEL`).
-   - `mapInfo.arpQos5qiMap[q][a]` = `TRUE` for every cross-product combination of valid 5QI and ARP.
-4. Loop over `svcGrpCfg[MIN_SVC_GRP_CONFIG_ID .. MAX_SVC_GRP_DB_NUM)`:
+2. Build a **single** `serviceGroupMappingInfo_type` (zero-initialized) combining all profile dimensions:
+   - **Slice (sstSd)**: Iterate over `slice[0..numSlice)`, writing `mapInfo.sstSd = (SST << 24) | (SD & 0x00FFFFFF)` each time. Since each iteration overwrites the previous value, the **last** slice entry's `sstSd` is the one that remains when service-group matching runs. If `numSlice == 0`, `sstSd` stays `0` (zero-initialized).
+   - **5QI map**: `mapInfo.qos5qiMap[q]` = `TRUE` for each 5QI value `q` in the entry's `qos_5qi[]`.
+   - **ARP map**: `mapInfo.arpMap[a]` = `TRUE` for each ARP value `a` in the entry's `arp[]` (where `a < MAX_ARP_LEVEL`).
+   - **ARP×5QI cross-product**: `mapInfo.arpQos5qiMap[q][a]` = `TRUE` for every combination of `qos_5qi[q]` × `arp[a]` (where `arp[a] < MAX_ARP_LEVEL`).
+3. Loop over `svcGrpCfg[MIN_SVC_GRP_CONFIG_ID .. MAX_SVC_GRP_DB_NUM)`:
    - Skip entries where `usage != TRUE` or `plmnIndex != pSaCfg->plmn_index`.
    - Skip if the service group's priority is already worse than current `bestPriority`, or if equal priority but higher `svcGrpId`.
    - Call `FnVCCB_FindSvcGrpIdByMappingRule` to attempt matching; update `bestSvcGrpId` and `bestPriority` on success.
-5. After all slice iterations, store `bestPriority` → `pSaCfg->priority`.
+4. Store `bestPriority` → `pSaCfg->priority`.
 
 For entries with `usage != SVC_CFG_USAGE_USE`, set `priority = WORST_SVC_GRP_PRIORITY`.
 
@@ -180,10 +179,10 @@ For entries with `usage != SVC_CFG_USAGE_USE`, set `priority = WORST_SVC_GRP_PRI
 For each `svcCfgEndcEntries[i]` with `service_endc_usage == SVC_CFG_USAGE_USE`:
 
 1. Initialize `bestPriority = WORST_SVC_GRP_PRIORITY`.
-2. Build a single `serviceGroupMappingInfo_type`:
-   - `mapInfo.qos5qiMap[q]` = `TRUE` for each QCI value `q` in the entry's `qos_qci[]` (mapped into the 5QI map, where `q < MAX_5QI_VALUE`).
-   - `mapInfo.arpMap[a]` = `TRUE` for each ARP value `a` (where `a < MAX_ARP_LEVEL`).
-   - `mapInfo.arpQos5qiMap[q][a]` = `TRUE` for every cross-product combination.
+2. Build a **single** `serviceGroupMappingInfo_type` (zero-initialized):
+   - **QCI → 5QI map**: `mapInfo.qos5qiMap[q]` = `TRUE` for each QCI value `q` in the entry's `qos_qci[]` (QCI values are mapped directly into the 5QI map array).
+   - **ARP map**: `mapInfo.arpMap[a]` = `TRUE` for each ARP value `a` (where `a < MAX_ARP_LEVEL`).
+   - **ARP×QCI cross-product**: `mapInfo.arpQos5qiMap[q][a]` = `TRUE` for every combination of `qos_qci[q]` × `arp[a]` (where `arp[a] < MAX_ARP_LEVEL`).
 3. Loop over `svcGrpCfg[]` with same filtering and matching logic as SA.
 4. Store `bestPriority` → `pEndcCfg->priority`.
 
@@ -197,17 +196,23 @@ FnVCCB_UpdateSvcCfgPriorities(gnbNum)
   ├─ [SA entries] for each svcCfgSaEntries[i]:
   │   ├─ usage != USE → priority = WORST_SVC_GRP_PRIORITY, skip
   │   └─ usage == USE:
-  │       ├─ for each slice (or once if no slices):
-  │       │   ├─ Build serviceGroupMappingInfo_type (sstSd, qos5qiMap, arpMap, arpQos5qiMap)
-  │       │   └─ for each svcGrpCfg[] (usage + PLMN filter):
-  │       │       └──► FnVCCB_FindSvcGrpIdByMappingRule → update bestPriority
+  │       ├─ Build single serviceGroupMappingInfo_type (zero-init):
+  │       │   ├─ Iterate slices → overwrite mapInfo.sstSd each time (last slice wins)
+  │       │   ├─ Populate qos5qiMap from qos_5qi[]
+  │       │   ├─ Populate arpMap from arp[] (guarded by < MAX_ARP_LEVEL)
+  │       │   └─ Populate arpQos5qiMap cross-product (guarded by < MAX_ARP_LEVEL)
+  │       ├─ for each svcGrpCfg[] (usage + PLMN filter + priority pruning):
+  │       │   └──► FnVCCB_FindSvcGrpIdByMappingRule → update bestPriority
   │       └─ pSaCfg->priority = bestPriority
   │
   └─ [ENDC entries] for each svcCfgEndcEntries[i]:
       ├─ usage != USE → priority = WORST_SVC_GRP_PRIORITY, skip
       └─ usage == USE:
-          ├─ Build serviceGroupMappingInfo_type (qos5qiMap, arpMap, arpQos5qiMap from QCI/ARP)
-          ├─ for each svcGrpCfg[] (usage + PLMN filter):
+          ├─ Build single serviceGroupMappingInfo_type (zero-init):
+          │   ├─ Populate qos5qiMap from qos_qci[] (QCI mapped as 5QI index)
+          │   ├─ Populate arpMap from arp[] (guarded by < MAX_ARP_LEVEL)
+          │   └─ Populate arpQos5qiMap cross-product (guarded by < MAX_ARP_LEVEL)
+          ├─ for each svcGrpCfg[] (usage + PLMN filter + priority pruning):
           │   └──► FnVCCB_FindSvcGrpIdByMappingRule → update bestPriority
           └─ pEndcCfg->priority = bestPriority
 ```
