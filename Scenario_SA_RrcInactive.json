@@ -1,0 +1,1302 @@
+{
+    "Description": "This scenario describes the scenario contents for the SA RRC Inactive feature related call procedure.",
+    "Scenario": [
+        {
+            "name": "RRCSuspend",
+            "msg": [
+                {
+                    "timeout": "timInternalUserInactivitySig_id",
+                    "callId": 80
+                },
+                {
+                    "name": "json_make",
+                    "msgName": "E1_BearerContextInactivityNotification",
+                    "callId": 80,
+                    "ActivityInformation": {
+                        "uE-Activity": "not-active"
+                    },
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 80,
+                                "usage": 1,
+                                "state": "Inact_F1ModQuery",
+                                "stateCmd": "RRCSuspend_cmd"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {
+                    "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                    "callId": 80,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 80,
+                                "usage": 1,
+                                "state": "Inact_Suspend",
+                                "stateCmd": "Idle_cmd"
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RRCSuspend_DRBLevel",
+            "msg": [
+                {
+                    "timeout": "timInternalUserInactivitySig_id",
+                    "callId": 80
+                },
+                {
+                    "name": "json_make",
+                    "msgName": "E1_BearerContextInactivityNotification",
+                    "callId": 80,
+                    "ActivityInformation": {
+                        "dRB-Activity-List": [
+                            {
+                                "dRB-ID": 1,
+                                "dRB-Activity": "not-active"
+                            }
+                        ]
+                    },
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 80,
+                                "usage": 1,
+                                "state": "Inact_F1ModQuery",
+                                "stateCmd": "RRCSuspend_cmd"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                },
+                {
+                    "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                    "callId": 80,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 80,
+                                "usage": 1,
+                                "state": "Inact_Suspend",
+                                "stateCmd": "Idle_cmd"
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "RRCSuspend_without_F1_UEContextReleaseComplete",
+            "msg": [
+                {
+                    "timeout": "timInternalUserInactivitySig_id",
+                    "callId": 80
+                },
+                {
+                    "name": "json_make",
+                    "msgName": "E1_BearerContextInactivityNotification",
+                    "callId": 80,
+                    "ActivityInformation": {
+                        "uE-Activity": "not-active"
+                    },
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 80,
+                                "usage": 1,
+                                "state": "Inact_F1ModQuery",
+                                "stateCmd": "RRCSuspend_cmd"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                }
+            ]
+        },
+        {
+            "name": "RRCResumeRequest1_CallNotFound",
+            "msg": [
+                {
+                    "callId":80, "name": "json_make",
+                    "msgName":"F1_InitialULRRCMessageTransfer",
+                    "callResumeInd":1,
+                    "#checkDecodedData":null,
+                    "#checkEncodedData":{"approvalTest":null},
+                    "GNB-DU-UE-F1AP-ID":4,
+                    "NRCGI":{
+                        "pLMN-Identity":[ 4, 5, 0, 0, 5, 15 ],
+                        "nRCellIdentity": {
+                            "desc":"32 bit data, 8/8/8/8/4",
+                            "value":[
+                                7, 83, 160, 0, 0
+                            ]
+                        }
+                    },
+                    "C-RNTI":1,
+                    "RRCContainer":{
+                        "load":"Scenario_NRRRC.rrcResumeRequest1.example"
+                    },
+                    "main_thread":1
+                },
+                {
+                    "callId":80, "name": "json_make",
+                    "msgName":"F1_InitialULRRCMessageTransfer",
+                    "#checkDecodedData":null,
+                    "#checkEncodedData":{"approvalTest":null},
+                    "GNB-DU-UE-F1AP-ID":4,
+                    "NRCGI":{
+                        "pLMN-Identity":[ 4, 5, 0, 0, 5, 15 ],
+                        "nRCellIdentity": {
+                            "desc":"32 bit data, 8/8/8/8/4",
+                            "value":[
+                                7, 83, 160, 0, 0
+                            ]
+                        }
+                    },
+                    "C-RNTI":1,
+                    "RRCContainer":{
+                        "load":"Scenario_NRRRC.rrcResumeRequest1.example"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResume",
+            "msg": [
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse",
+                    "callId":80,
+                    "modify": {
+                        "f1":{
+                            "gNB_DU_UE_F1AP_ID":5
+                        }
+                    }
+                },
+                {   "callId":80, "name": "json_make",
+                        "msgName":"F1_ULRRCMessageTransfer",
+                        "RRCContainer":{
+                            "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                        }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResumeFallbackToRRCSetup",
+            "msg": [
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR_CallID_81",
+                    "modify": {
+                        "ng": {
+                            "MobilityRestrictionList":{
+                                "servingPLMN":[
+                                    "0x54", "0xF0", "0x50"
+                                ]
+                            }
+                        }
+                    },
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_SETUP_RESPONSE",
+                    "callId":81
+                },
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse",
+                    "callId":81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":81
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_SecurityModeComplete",
+                    "callId":81
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_RRCReconfigurationComplete",
+                    "callId":81
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":81
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResumeFallbackToRRCSetup_VoNR_NorSupport",
+            "msg": [
+                {
+                    "func_name": "t_vonrcapa",
+                    "callId": 81,
+                    "vonrCapa": {
+                        "fr1": 0,
+                        "fr2": 0
+                    }
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR_CallID_81",
+                    "modify": {
+                        "ng": {
+                            "MobilityRestrictionList":{
+                                "servingPLMN":[
+                                    "0x54", "0xF0", "0x50"
+                                ]
+                            }
+                        }
+                    },
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_SETUP_RESPONSE",
+                    "callId":81
+                },
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse",
+                    "callId":81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":81
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_SecurityModeComplete",
+                    "callId":81
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_RRCReconfigurationComplete",
+                    "callId":81
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":81
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResume_with_DuInitFullConfig",
+            "msg": [
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse_DuInitFullConfig",
+                    "callId": 80,
+                    "modify": {
+                        "f1": {
+                            "gNB_DU_UE_F1AP_ID": 5
+                        }
+                    }
+                },
+                {   "callId": 80,
+                    "name": "json_make",
+                        "msgName": "F1_ULRRCMessageTransfer",
+                        "RRCContainer": {
+                            "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                        }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_PLMN_2_RRCResume",
+            "msg": [
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse",
+                    "callId":80,
+                    "modify": {
+                        "f1":{
+                            "gNB_DU_UE_F1AP_ID":5
+                        }
+                    }
+                },
+                {   "callId":80, "name": "json_make",
+                    "msgName":"F1_ULRRCMessageTransfer",
+                    "RRCContainer":{
+                        "load": "Scenario_NRRRC.rrcResumeComplete.with_2_selectedPLMN_Identity"
+                    }
+                },
+                {
+                    "func_name": "t_plmn2Handling",
+                    "callId": 80,
+                    "plmnIndex": 2,
+                    "plmn": 45008
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId":80
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type1",
+            "msg": [
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_with_VoNR_CNAI_MultiPDUs",
+                    "modify": {
+                        "ng": {
+                            "aMF_UE_NGAP_ID": 10,
+                            "rAN_UE_NGAP_ID": 81,
+                            "PDU-Session-ResourceSetupList-Cxt-Req": [
+                                { "pDU_Session_ID": 1, "qosFlowIdentifier": 1, "fiveQi": 1, "S-NSSAI": { "sst": 1, "sd": 100 } },
+                                { "pDU_Session_ID": 2, "qosFlowIdentifier": 2, "fiveQi": 9, "S-NSSAI": { "sst": 1, "sd": 100 } }
+                            ],
+                            "rfsp": 10,
+                            "MobilityRestrictionList": {
+                                "servingPLMN": [ "0x54", "0xF0", "0x50" ]
+                            },
+                            "CoreNetworkAssistanceInformationForInactive": {
+                                "tAIListForInactive": {
+                                    "value": [
+                                        { "pLMNIdentity": [ "0x54", "0xF0", "0x50" ], "tAC": [ "0x00", "0x12", "0x35" ] }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_NG_UEContextReleaseCommand",
+                    "modify": {
+                        "ng": { "aMF_UE_NGAP_ID": 10 }
+                    },
+                    "callId": 80
+                },
+                {
+                    "name": "AUTOMATION"
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type2",
+            "msg": [
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_with_VoNR_CNAI_MultiPDUs",
+                    "modify": {
+                        "ng": {
+                            "aMF_UE_NGAP_ID": 10,
+                            "rAN_UE_NGAP_ID": 81,
+                            "PDU-Session-ResourceSetupList-Cxt-Req": [
+                                { "pDU_Session_ID": 1, "qosFlowIdentifier": 1, "fiveQi": 1, "S-NSSAI": { "sst": 1, "sd": 300 } },
+                                { "pDU_Session_ID": 2, "qosFlowIdentifier": 2, "fiveQi": 9, "S-NSSAI": { "sst": 1, "sd": 300 } }
+                            ],
+                            "rfsp": 10,
+                            "MobilityRestrictionList": {
+                                "servingPLMN": [ "0x54", "0xF0", "0x50" ]
+                            },
+                            "CoreNetworkAssistanceInformationForInactive": {
+                                "tAIListForInactive": {
+                                    "value": [
+                                        { "pLMNIdentity": [ "0x54", "0xF0", "0x50" ], "tAC": [ "0x00", "0x12", "0x35" ] }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_NG_UEContextReleaseCommand",
+                    "modify": {
+                        "ng": { "aMF_UE_NGAP_ID": 10 }
+                    },
+                    "callId": 80
+                },
+                {
+                    "name": "AUTOMATION"
+                }
+            ]
+        },
+
+
+        {
+            "name": "IntraGnb_RRCResume_SpecificSlices_2PDUs",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735362,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        }
+                    },
+                    "callId": 81,
+                    "gnbId": 120040,
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResume_SpecificSlices_1PDU",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_only"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735362,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        }
+                    },
+                    "callId": 81,
+                    "gnbId": 120040,
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_Fallback_RRCSetup_SpecificSlices_Type1",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735362,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        }
+                    },
+                    "callId": 81,
+                    "gnbId": 120040,
+                    "main_thread": 1
+                },
+                {
+                    "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735362,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        }
+                    },
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type1" 
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_Fallback_RRCSetup_SpecificSlices_Type2",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735362,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        }
+                    },
+                    "callId": 81,
+                    "gnbId": 120040,
+                    "main_thread": 1
+                },
+                {
+                    "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735362,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        }
+                    },
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type2" 
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResumeFallbackToRRCSetup",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse/Failure"
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "modify": {
+                        "endPointIdx": 1
+                    },
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR_CallID_81",
+                    "modify": {
+                        "ng": {
+                            "MobilityRestrictionList": {
+                                "#servingPLMN": [
+                                    "0x54", "0xF0", "0x50"
+                                ]
+                            }
+                        }
+                    },
+                    "callId": 81,
+                    "checkUe": {
+                        "ueList": [
+                            {
+                                "callId": 81,
+                                "usage": 1,
+                                "servedPlmn": 45005
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type1",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse/Failure"
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "modify": {
+                        "endPointIdx": 1
+                    },
+                    "checkUe": {
+                        "ueList": [
+                            { "callId": 81, "usage": 1, "servedPlmn": 45005 }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_with_VoNR_CNAI_MultiPDUs",
+                    "modify": {
+                        "ng": {
+                            "aMF_UE_NGAP_ID": 10,
+                            "rAN_UE_NGAP_ID": 81,
+                            "PDU-Session-ResourceSetupList-Cxt-Req": [
+                                { "pDU_Session_ID": 1, "qosFlowIdentifier": 1, "fiveQi": 1, "S-NSSAI": { "sst": 1, "sd": 100 } },
+                                { "pDU_Session_ID": 2, "qosFlowIdentifier": 2, "fiveQi": 9, "S-NSSAI": { "sst": 1, "sd": 100 } }
+                            ],
+                            "rfsp": 10,
+                            "MobilityRestrictionList": {
+                                "servingPLMN": [ "0x54", "0xF0", "0x50" ]
+                            },
+                            "CoreNetworkAssistanceInformationForInactive": {
+                                "tAIListForInactive": {
+                                    "value": [
+                                        { "pLMNIdentity": [ "0x54", "0xF0", "0x50" ], "tAC": [ "0x00", "0x12", "0x35" ] }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "callId": 81
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type2",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse/Failure"
+                },
+                {
+                    "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                    "callId": 81,
+                    "modify": {
+                        "endPointIdx": 1
+                    },
+                    "checkUe": {
+                        "ueList": [
+                            { "callId": 81, "usage": 1, "servedPlmn": 45005 }
+                        ]
+                    }
+                },
+                {
+                    "name": "g_SA_NG_InitialContextSetupRequest_with_VoNR_CNAI_MultiPDUs",
+                    "modify": {
+                        "ng": {
+                            "aMF_UE_NGAP_ID": 10,
+                            "rAN_UE_NGAP_ID": 81,
+                            "PDU-Session-ResourceSetupList-Cxt-Req": [
+                                { "pDU_Session_ID": 1, "qosFlowIdentifier": 1, "fiveQi": 1, "S-NSSAI": { "sst": 1, "sd": 300 } },
+                                { "pDU_Session_ID": 2, "qosFlowIdentifier": 2, "fiveQi": 9, "S-NSSAI": { "sst": 1, "sd": 300 } }
+                            ],
+                            "rfsp": 10,
+                            "MobilityRestrictionList": {
+                                "servingPLMN": [ "0x54", "0xF0", "0x50" ]
+                            },
+                            "CoreNetworkAssistanceInformationForInactive": {
+                                "tAIListForInactive": {
+                                    "value": [
+                                        { "pLMNIdentity": [ "0x54", "0xF0", "0x50" ], "tAC": [ "0x00", "0x12", "0x35" ] }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "callId": 81
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RNAUpdate_SpecificSlices",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966735360,
+                            "gNB_DU_UE_F1AP_ID": 5,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_RNAU", "hex_log": 0 }
+                        },
+                        "callId": 81, "gnbid": 120040
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "name": "AUTOMATION"
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RNAUpdate_specificSlice_PDU_1_2",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse/Failure"
+                },
+                {
+                    "name": "AUTOMATION",
+                    "callId": 81
+                },
+                {
+                    "name": "g_ngPathSwitchRequestAck_with_VoNR_CNAI_MultiPDUs",
+                    "callId": 81
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResume",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_SETUP_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "F1_UE_CONTEXT_SETUP_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 80,
+                    "_comment": "[Target->Source] XN_XnUAddressIndication"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {   "callId":81, "name": "json_make",
+                    "msgName": "F1_ULRRCMessageTransfer",
+                    "RRCContainer": {
+                        "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                    }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "NG_PATH_SWITCH_REQUEST_ACKNOWLEDGE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 80,
+                    "_comment": "[Target->Source] XN_UEContextRelease"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                    "callId": 80
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResume_with_DuInitFullConfig_Type1",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_SETUP_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse_DuInitFullConfig",
+                    "callId": 81,
+                    "modify": {
+                        "f1": {
+                            "gNB_DU_UE_F1AP_ID": 1
+                        }
+                    }
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 80,
+                    "_comment": "[Target->Source] XN_XnUAddressIndication"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {   "callId":81, "name": "json_make",
+                    "msgName": "F1_ULRRCMessageTransfer",
+                    "RRCContainer": {
+                        "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                    }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "NG_PATH_SWITCH_REQUEST_ACKNOWLEDGE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 80,
+                    "_comment": "[Target->Source] XN_UEContextRelease"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                    "callId": 80
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResume_with_DuInitFullConfig_Type2",
+            "msg": [
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 81,
+                    "_comment": "[Source->Target] XN_RetrieveUEContextResponse"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_SETUP_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "F1_UE_CONTEXT_SETUP_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 80,
+                    "_comment": "[Target->Source] XN_XnUAddressIndication"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 80
+                },
+                {   "callId":81, "name": "json_make",
+                    "msgName": "F1_ULRRCMessageTransfer",
+                    "RRCContainer": {
+                        "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                    }
+                },
+                {
+                    "name": "g_SA_F1_UEContextModificationResponse_DuInitFullConfig",
+                    "callId": 81,
+                    "modify": {
+                        "f1": {
+                            "gNB_DU_UE_F1AP_ID": 1
+                        }
+                    }
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "NG_PATH_SWITCH_REQUEST_ACKNOWLEDGE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "func_name": "t_handle_relay_xn_message",
+                    "callId": 80,
+                    "_comment": "[Target->Source] XN_UEContextRelease"
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                    "callId": 80
+                }
+            ]
+        },
+        {
+            "name": "IntraGnb_RRCResume_82",
+            "msg": [
+                {
+                    "name": "g_SA_F1_UEContextSetupResponse",
+                    "callId": 81,
+                    "modify": {
+                        "f1": {
+                            "gNB_DU_UE_F1AP_ID": 1
+                        }
+                    }
+                },
+                {   "callId":81, "name": "json_make",
+                        "msgName": "F1_ULRRCMessageTransfer",
+                        "RRCContainer": {
+                            "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                        }
+                },
+                {
+                    "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                },
+                {
+                    "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                    "callId": 81
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RRCResume_SpecificSlices",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_XN_RetrieveUEContextRequest_Resume",
+                    "modify": {
+                        "gnbid": 120040, "gnbnum": 0, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "name": "g_SA_E1_BearerContextModificationResponse_Simple",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.InterGnb_RRCResume"
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_Fallback_RRCSetup_SpecificSlices_Type1",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_XN_RetrieveUEContextRequest_Resume",
+                    "modify": {
+                        "gnbid": 120040, "gnbnum": 0, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "name": "g_SA_E1_BearerContextModificationResponse_Simple",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.InterGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type1"
+                },
+                {
+                    "name": "g_SA_NG_UEContextReleaseCommand",
+                    "modify": {
+                        "ng": { "aMF_UE_NGAP_ID": 10 }
+                    },
+                    "callId": 80
+                },
+                {
+                    "name": "AUTOMATION"
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_Fallback_RRCSetup_SpecificSlices_Type2",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_mo-Data", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_XN_RetrieveUEContextRequest_Resume",
+                    "modify": {
+                        "gnbid": 120040, "gnbnum": 0, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "name": "g_SA_E1_BearerContextModificationResponse_Simple",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.InterGnb_RRCResumeFallbackToRRCSetup_specificSlice_PDU_1_2_Type2"
+                },
+                {
+                    "name": "g_SA_NG_UEContextReleaseCommand",
+                    "modify": {
+                        "ng": { "aMF_UE_NGAP_ID": 10 }
+                    },
+                    "callId": 80
+                },
+                {
+                    "name": "AUTOMATION"
+                }
+            ]
+        },
+        {
+            "name": "InterGnb_RNAUpdate_SpecificSlices",
+            "msg": [
+                {
+                    "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend__SpecificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_RNAU", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                    "modify": {
+                        "f1": {
+                            "NRCGI": 1966751844,
+                            "gNB_DU_UE_F1AP_ID": 1,
+                            "RRCContainer": { "name": "RRC_ResumeRequest1_resumeCause_RNAU", "hex_log": 0 }
+                        },
+                        "gnbid": 120041, "gnbnum": 1, "endPointIdx": 1
+                    },
+                    "callId": 81
+                },
+                {
+                    "name": "g_SA_XN_RetrieveUEContextRequest_RNAUpdate",
+                    "modify": {
+                        "gnbid": 120040, "gnbnum": 0, "endPointIdx": 1
+                    },
+                    "main_thread": 1
+                },
+                {
+                    "func_name": "t_handle_relay_internal_message",
+                    "callId": 80
+                },
+                {
+                    "name": "g_SA_E1_BearerContextModificationResponse_Simple",
+                    "callId": 80
+                },
+                {
+                    "load": "Scenario_SA_RrcInactive.InterGnb_RNAUpdate_specificSlice_PDU_1_2"
+                },
+                {
+                    "name": "g_SA_NG_UEContextReleaseCommand",
+                    "modify": {
+                        "ng": {
+                            "aMF_UE_NGAP_ID": 10
+                        }
+                    },
+                    "callId": 80
+                },
+                {
+                    "name": "AUTOMATION"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,4170 @@
+{
+    "default": {
+        "input": {
+            "check_input"   : 0,
+            "check_output"  : 0,
+            "check_copyMsg" : 0,
+            "tc_filter": {
+                "tc_filter_use": 0,
+                "tc_list": [ {"name": "", "range_check": 0} ]
+            }
+        },
+        "print":{
+            "DBG->localLevel": 1,
+            "DBG->flag.fdebug_msg":1
+        },
+        "expect_call": {
+            "vpmCollectUint"         : 1,
+            "mdsGetSrcIp"       : 1,
+            "mdsGetDesIp"       : 1,
+            "mdsMakePort"       : 1,
+            "mdsMakeMdsAddr"    : 1,
+            "vpmCollectFloat"   : 1,
+            "t_timerId"         : 2,
+            "ensCancelTimer"    : 1,
+            "ensStartTimer"     : 1,
+            "ensPeriodicTimer"    : 1,
+            "_hasGetState"     : 1,
+            "mdsSend": 1,
+            "hasDirectSync"     : 1
+        },
+        "msg":[
+            {
+                "before_mmc_list": [
+                    ["itscp", "set", "cfg", "foo", "F_StandAlone_BasicCallOperationForSa", "1"],
+                    ["itscp", "set", "cfg", "foo", "F_RRCInactiveDay1", "1"],
+                    ["itscp", "set", "dbg", "log", "store", "debugLevel", "4"]
+                ]
+            }
+        ]
+    },
+    "testcases":[
+        {
+            "desc": "01",
+            "name": "RRCSuspend_procedure",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T76359",
+                    "desc": "The serving cell satisfies TAI List for RRC Inactive and transmitted to RRC Inactive."
+                },
+                {
+                    "key": "RCC-T81164",
+                    "desc": "For non-RedCap UE, VCCB shall deliver the inactivity-timer designed for non-RedCap ITs over E1 BearerContextSetupRequest."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list" : [
+                            ["itscp", "set", "cfg", "foo", "F_BasicCallProcedureforRedCapUE", "0"]
+                        ],
+                        "func_name": "setRrcInactiveParameter",
+                        "gnbNum" : 0,
+                        "featureEnabled" : 1,
+                        "activityNotificationLevel" : 0,
+                        "rrcInactiveTimer" : 11,
+                        "rrcIdleTimer" : 16,
+                        "redCapActivityNotificationLevel" : 0,
+                        "redCapRrcInactiveTimer" : 21,
+                        "redCapRrcIdleTimer" : 26,
+                        "drbTimer" : [
+                            { "qos5qi" : 5, "inactive" : 11, "idle" : 16 }
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd",
+                            "condHoInfo.numOfCellList": 0
+                        }
+                    ]
+                },
+                "checkMsg": {
+                    "msgList": [
+                        {    
+                            "callState": "Est",
+                            "msgId": "NG_InitialContextSetupRequestAmfAll",
+                            "jsonIEChecker": {
+                                "include": [
+                                    {
+                                        "id": "id_NG_CoreNetworkAssistanceInformationForInactive",
+                                        "value": {
+                                            "tAIListForInactive": [
+                                                {
+                                                    "pLMNIdentity": "54f050",
+                                                    "tAC": "1235"
+                                                },
+                                                {
+                                                    "pLMNIdentity": "54f050",
+                                                    "tAC": "1234"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "callState": "Est",
+                            "msgId": "E1_BearerContextSetupRequest",
+                            "jsonIEChecker" : {
+                                "include" : [
+                                    {
+                                        "id": "id_E1_UE_Inactivity_Timer",
+                                        "value" : 11
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "02",
+            "name": "RRCSuspend_procedure_RedCapFooON",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T76359",
+                    "desc": "The serving cell satisfies TAI List for RRC Inactive and transmitted to RRC Inactive."
+                },
+                {
+                    "key": "RCC-T81163",
+                    "desc": "For non-RedCap UE, VCCB shall deliver the inactivity-timer designed for non-RedCap ITs over E1 BearerContextSetupRequest."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list" : [
+                            ["itscp", "set", "cfg", "foo", "F_BasicCallProcedureforRedCapUE", "1"]
+                        ],
+                        "func_name": "setRrcInactiveParameter",
+                        "gnbNum" : 0,
+                        "featureEnabled" : 1,
+                        "activityNotificationLevel" : 0,
+                        "rrcInactiveTimer" : 11,
+                        "rrcIdleTimer" : 16,
+                        "redCapActivityNotificationLevel" : 0,
+                        "redCapRrcInactiveTimer" : 21,
+                        "redCapRrcIdleTimer" : 26,
+                        "drbTimer" : [
+                            { "qos5qi" : 5, "inactive" : 11, "idle" : 16 }
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd",
+                            "condHoInfo.numOfCellList": 0
+                        }
+                    ]
+                },
+                "checkMsg": {
+                    "msgList": [
+                        {    
+                            "callState": "Est",
+                            "msgId": "NG_InitialContextSetupRequestAmfAll",
+                            "jsonIEChecker": {
+                                "include": [
+                                    {
+                                        "id": "id_NG_CoreNetworkAssistanceInformationForInactive",
+                                        "value": {
+                                            "tAIListForInactive": [
+                                                {
+                                                    "pLMNIdentity": "54f050",
+                                                    "tAC": "1235"
+                                                },
+                                                {
+                                                    "pLMNIdentity": "54f050",
+                                                    "tAC": "1234"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "callState": "Est",
+                            "msgId": "E1_BearerContextSetupRequest",
+                            "jsonIEChecker" : {
+                                "include" : [
+                                    {
+                                        "id": "id_E1_UE_Inactivity_Timer",
+                                        "value" : 11
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "03",
+            "name": "RRCSuspend_without_MRL",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR_without_MRL",
+                        "callId":80,
+                        "modify": {
+                            "ng":{
+                                "CoreNetworkAssistanceInformationForInactive": {
+                                    "tAIListForInactive": {
+                                        "value": [
+                                            {
+                                                "pLMNIdentity":[
+                                                    "0x54", "0xF0", "0x50"
+                                                ],
+                                                "tAC":[
+                                                    "0x00", "0x12", "0x34"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "28"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_F1ModQuery",
+                            "stateCmd": "RRCSuspend_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "04",
+            "name": "RRCRelease_instead_of_suspend_by_rATRestrictions_in_MRL",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR",
+                        "modify": {
+                            "ng":{
+                                "MobilityRestrictionList":{
+                                    "rATRestrictions":{
+                                        "value" : [
+                                            {
+                                                "pLMNIdentity":[
+                                                    "0x54", "0xF0", "0x50"
+                                                ],
+                                                "rATRestrictionInformation": "0x40"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "callId":80,
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "28"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn_RelCmd",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "05",
+            "name": "RRCRelease_instead_of_suspend_by_forbiddenAreaInformation_in_MRL",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR",
+                        "modify": {
+                            "ng":{
+                                "MobilityRestrictionList":{
+                                    "forbiddenAreaInformation":{
+                                        "value" : [
+                                            {
+                                                "pLMNIdentity":[
+                                                    "0x54", "0xF0", "0x50"
+                                                ],
+                                                "forbiddenTACs":[
+                                                    "0x00", "0x12", "0x34"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "callId":80,
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "28"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn_RelCmd",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "06",
+            "name": "RRCRelease_instead_of_suspend_by_serviceAreaInformation_in_MRL",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "name": "g_SA_NG_InitialContextSetupRequest_capaModified_VoNR",
+                        "modify": {
+                            "ng":{
+                                "MobilityRestrictionList":{
+                                    "serviceAreaInformation":{
+                                        "value" : [
+                                            {
+                                                "pLMNIdentity":[
+                                                    "0x54", "0xF0", "0x50"
+                                                ],
+                                                "notAllowedTACs":[
+                                                    "0x00", "0x12", "0x34"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        "callId":80,
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "28"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn_RelCmd",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "07",
+            "name": "RRCSuspend_procedure_with_CHO_Cancel",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54116",
+                    "desc": "Check that all CHO candidate cell lists are deleted during the RRC Suspend procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {   "name": "g_f1ULRRCMessageTransfer_MeasurementReport_Msg",
+                        "modify":{
+                            "f1":{
+                                "gNB_DU_UE_F1AP_ID":4,
+                                "RRCContainer":{
+                                    "load":"Scenario_MR.measId:2___servCellId_0_rsrp_23___nbr_pci154_rsrp_22",
+                                    "add_pdcp_hdr":1
+                                },
+                                "SRBID":1
+                            }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "INTER_Pre_DU_S",
+                                    "stateCmd": "IntraRatHO_cmd",
+                                    "hoType_initiated": 54
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Handover.InterGnb_XnHandover_Prep_128"
+                    },
+                    {
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "condHoInfo.numOfCellList": 1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd",
+                            "condHoInfo.numOfCellList": 0
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "08",
+            "name": "RRCSuspend_procedure_without_F1_UEContextReleaseComplete",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54120",
+                    "desc": "During RRC Suspend procedure, check transition to Inact_Suspend state without setting Timer waiting for F1_UEContextReleaseComplete."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend_without_F1_UEContextReleaseComplete"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "09",
+            "name": "RRCSuspend_procedure_failure_due_to_E1_BearerContextModification_Timeout",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54121",
+                    "desc": "If E1_BearerContextModification Timeout occurs during RRC Suspend procedure, check the normal call release procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Inact_F1ModQuery",
+                                    "stateCmd": "RRCSuspend_cmd"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timE1_BearerContextModification_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "NG_UE_CONTEXT_RELEASE_COMMAND",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "10",
+            "name": "RRCSuspend_procedure_failure_due_to_E1_BearerContextModification_Timeout_and_occurred_F1_UEContextRelase_Timeout",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54122",
+                    "desc": "Check the procedure when E1_BearerContextModification Timeout occurs during RRC Suspend procedure and F1_UeContextRelease Timeout occurs during call release procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Inact_F1ModQuery",
+                                    "stateCmd": "RRCSuspend_cmd"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timE1_BearerContextModification_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "NG_UE_CONTEXT_RELEASE_COMMAND",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "timeout": "timInternalResourceRelease_id",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "11",
+            "name": "RRCInactiveToIdle_procedure",
+            "testCaseInfo": [
+                {
+                    "key": "RCC-T81167",
+                    "desc": "For Non-RedCap UE, VCCB shall deliver the inactivity-timer designed for Non-RedCap IEs over E1 BearerContextModificationRequest."
+                },
+                {
+                    "key": "RCC-T87809",
+                    "desc": "For Non-RedCap UE, VCCB shall deliver the inactivity-timer designed for Non-RedCap IEs over E1 BearerContextModificationRequest."
+                }
+            ],
+            "input": {
+                "skip": 0,
+                "print": {
+                    "DBG->localLevel": 1
+                },
+                "msg": [
+                    {
+                        "before_mmc_list": [
+                            ["itscp", "set", "cfg", "foo", "F_BasicCallProcedureforRedCapUE", "0"]
+                        ],
+                        "func_name": "setRrcInactiveParameter",
+                        "gnbNum": 0,
+                        "featureEnabled": 1,
+                        "activityNotificationLevel": 0,
+                        "rrcInactiveTimer": 11,
+                        "rrcIdleTimer": 16,
+                        "redCapActivityNotificationLevel": 0,
+                        "redCapRrcInactiveTimer": 21,
+                        "redCapRrcIdleTimer": 26
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "modify": {
+                            "ng": { "cause": { "radioNetwork": 20 } }
+                        },
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1": {
+                                "NRCGI": 1966735360,
+                                "gNB_DU_UE_F1AP_ID": 5,
+                                "RRCContainer": {
+                                    "name": "RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log": 0
+                                }
+                            }
+                        },
+                        "callId": 81,
+                        "gnbId": 120040,
+                        "main_thread": 1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId": 80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "after_mmc_list": [
+                            ["itscp", "get", "log", "hist", "-C", "-a", "-L5", "-o255"],
+                            ["#itscp", "get", "log", "msg", "158"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkMsg": {
+                    "msgList": [
+                        {
+                            "callState": "Est",
+                            "msgId": "E1_BearerContextSetupRequest",
+                            "jsonIEChecker": {
+                                "include": [
+                                    {
+                                        "id": "id_E1_UE_Inactivity_Timer",
+                                        "value": 11
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "callState": "Inact_F1ModQuery",
+                            "msgId": "E1_BearerContextModificationRequest",
+                            "jsonIEChecker": {
+                                "include": [
+                                    {
+                                        "id": "id_E1_UE_Inactivity_Timer",
+                                        "value": 16
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "callState": "Inact_Suspend",
+                            "msgId": "NG_UEContextReleaseRequestAllAmf",
+                            "jsonIEChecker": {
+                                "include": [
+                                    {
+                                        "id": "id_NG_Cause",
+                                        "value": { "radioNetwork": 20 }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order": true,
+                    "statList": [
+                        {"family_id":5213, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5213, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5218, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":3, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5218, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":3, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5216, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":5, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":206, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "12",
+            "name": "RRCInactiveToIdle_procedure_RedCapFooOn",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T81166",
+                    "desc": "For Non-RedCap UE, VCCB shall deliver the inactivity-timer designed for Non-RedCap IEs over E1 BearerContextModificationRequest."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list" : [
+                            ["itscp", "set", "cfg", "foo", "F_BasicCallProcedureforRedCapUE", "1"]
+                        ],
+                        "func_name": "setRrcInactiveParameter",
+                        "gnbNum" : 0,
+                        "featureEnabled" : 1,
+                        "activityNotificationLevel" : 0,
+                        "rrcInactiveTimer" : 11,
+                        "rrcIdleTimer" : 16,
+                        "redCapActivityNotificationLevel" : 0,
+                        "redCapRrcInactiveTimer" : 21,
+                        "redCapRrcIdleTimer" : 26
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "modify": {
+                            "ng": { "cause": { "radioNetwork": 20 } }
+                        },
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1": {
+                                "NRCGI": 1966735360,
+                                "gNB_DU_UE_F1AP_ID": 5,
+                                "RRCContainer": {
+                                    "name": "RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log": 0
+                                }
+                            }
+                        },
+                        "callId": 81,
+                        "gnbId": 120040,
+                        "main_thread": 1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId": 80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "158"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkMsg" : {
+                    "msgList" : [
+                        {
+                            "callState": "Est",
+                            "msgId": "E1_BearerContextSetupRequest",
+                            "jsonIEChecker" : {
+                                "include" : [
+                                    {
+                                        "id": "id_E1_UE_Inactivity_Timer",
+                                        "value" : 11
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "callState": "Inact_F1ModQuery",
+                            "msgId": "E1_BearerContextModificationRequest",
+                            "jsonIEChecker" : {
+                                "include" : [
+                                    {
+                                        "id": "id_E1_UE_Inactivity_Timer",
+                                        "value" : 16
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5213, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5213, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5218, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":3, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5218, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":3, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5216, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":5, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":206, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "13",
+            "name": "RRCInactiveToIdle_procedure_without_F1_UEContextReleaseComplete",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T55088",
+                    "desc": "Transition to RRC_INACTIVE without waiting for F1_UEContextReleaseComplete during RRC Suspend procedure, and then check normal operation of RRCInactiveToIdle procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend_without_F1_UEContextReleaseComplete"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "modify": {
+                            "ng": { "cause": { "radioNetwork": 20 } }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "153"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "14",
+            "name": "RNAUpdate_procedure",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":4, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "15",
+            "name": "RNAUpdate_procedure_without_F1_UEContextReleaseComplete",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54124",
+                    "desc": "Transition to RRC_INACTIVE without waiting for F1_UEContextReleaseComplete during RRC Suspend procedure, and then check the normal operation of Intra-gNB RNAUpdate procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend_without_F1_UEContextReleaseComplete"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "16",
+            "name": "SaRrcInactive__RRC_CONN_to_RRC_INACT_and_release_by_RNAU_timeout",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "timeout": "timNRRRC_RNAUpdate_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5172, "type_id":210, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "17",
+            "name": "SaRrcInactive__RRC_CONN_to_RRC_INACT_and_release_by_RNAU_discard",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list": [
+                            ["itscp", "get", "dbg", "flag", "isDiscardRnaUpdateMessage"],
+                            ["itscp", "set", "dbg", "flag", "isDiscardRnaUpdateMessage", "on"]
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "timeout": "timNRRRC_RNAUpdate_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5172, "type_id":210, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "18",
+            "name": "RRCResume_procedure_triggered_by_RRCResumeRequest1",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54132",
+                    "desc": "Check that RRC_INACTIVE_INFO_DU_ID(RrcInact_RrcResumeReq,RrcInact_RrcResume) statistics are not being collected."
+                },
+                {
+                    "key": "RCC-T54133",
+                    "desc": "Check that RRC_CONN_INFO_DU_ID(CallHoldingTimeAvg,InactCallHoldingTimeAvg) statistics are not being collected."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "182"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5217, "type_id":4, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":11, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                },
+                "checkNoStat": {
+                    "statList": [
+                        { "family_id":5896 },
+                        { "family_id":5829 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "19",
+            "name": "RRCResume_procedure_triggered_by_RRCResumeRequest1_without_F1_UEContextReleaseComplete",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54123",
+                    "desc": "Transition to RRC_INACTIVE without waiting for F1_UEContextReleaseComplete during RRC Suspend procedure, and then check the normal operation of Intra-gNB RRC Resume procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend_without_F1_UEContextReleaseComplete"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "182"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "20",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_NgLocationReportingControl",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "func_name": "t_pagingConfig",
+                        "gnbNum": 0,
+                        "ranPagingTxCount": 2
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "name": "g_SA_NG_LocationReportingControl",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "167"],
+                            ["#itscp", "get", "log", "msg", "-d", "168"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "21",
+            "name": "SaRrcInactive__Resume_procedure_fail_by_NGDownlinkNASTransport_TMOUT",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "func_name": "t_pagingConfig",
+                        "gnbNum": 0,
+                        "ranPagingTxCount": 2
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "name": "g_SA_NG_DownlinkNASTransport",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5226, "type_id":3, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":3, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":208, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "22",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_enqueued_NGDownlinkNASTransport",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Inact_F1ModQuery",
+                                    "stateCmd": "RRCSuspend_cmd"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_E1_BearerContextModificationResponse_Simple",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_NG_DownlinkNASTransport",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_NG_DownlinkNASTransport",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextModificationRequest",
+                        "callId": 80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80,
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Inact_ResumeReq",
+                                    "stateCmd": "Idle_cmd"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "g_SA_NG_DownlinkNASTransport",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "167"],
+                            ["#itscp", "get", "log", "msg", "-d", "168"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "23",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_NGUEContextModificationRequest",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextModificationRequest",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "167"],
+                            ["#itscp", "get", "log", "msg", "-d", "168"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "24",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_NGUEContextModificationRequest__Paging_Retry_Success",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "func_name": "t_pagingConfig",
+                        "gnbNum": 0,
+                        "ranPagingTxCount": 3
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextModificationRequest",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "167"],
+                            ["#itscp", "get", "log", "msg", "-d", "168"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5449, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":2, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "25",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_NGUEContextModificationRequest_TMOUT",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "func_name": "t_pagingConfig",
+                        "gnbNum": 0,
+                        "ranPagingTxCount": 1
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextModificationRequest",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5449, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":3, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "26",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_NGUEContextModificationRequest_3rd_retry_TMOUT",
+            "desc": "for RCC-T50126",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "func_name": "t_pagingConfig",
+                        "gnbNum": 0,
+                        "ranPagingTxCount": 3
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextModificationRequest",
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId":80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5449, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":2, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":3, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "28",
+            "name": "SaRrcInactive__RRC_CONN_to_RRC_INACT_to_RRC_IDLE__Paging_Retry_Success",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "func_name": "t_pagingConfig",
+                        "gnbNum": 0,
+                        "ranPagingTxCount": 3
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "modify": {
+                            "ng": { "cause": { "radioNetwork": 20 } }
+                        },
+                        "callId": 80
+                    },
+                    {
+                        "timeout": "timNRRRC_RRCResumeRequest1_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1": {
+                                "NRCGI": 1966735360,
+                                "gNB_DU_UE_F1AP_ID": 5,
+                                "RRCContainer": {
+                                    "name": "RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log": 0
+                                }
+                            }
+                        },
+                        "callId": 81,
+                        "gnbId": 120040,
+                        "main_thread": 1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_f1UEContextReleaseComplete",
+                        "modify": {
+                            "f1": {
+                                "gNB_DU_UE_F1AP_ID":5
+                            }
+                        },
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "139"],
+                            ["#itscp", "get", "cfg", "gnb", "rrcInactiveInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5217, "type_id":4, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":206, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":18, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":11, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "29",
+            "name": "SaRrcInactive__Receive_NgUeContextModificationRequest_with_CoreNetworkAssistanceInformation_in_RRC_CONN",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextModificationRequest_CoreNetworkAssistanceInformationForInactive",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "132"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkMsg": {
+                    "msgList": [
+                        {
+                            "msgId": "NG_UEContextModificationResponseAllAmf",
+                            "callState": "Conn"
+                        }
+                    ]
+                },
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "30",
+            "name": "SaRrcInactive__Resume_procedure_triggered_by_RRCResumeRequest1_CHOCancel",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {   "name": "g_f1ULRRCMessageTransfer_MeasurementReport_Msg",
+                        "modify":{
+                            "f1":{
+                                "gNB_DU_UE_F1AP_ID":4,
+                                "RRCContainer":{
+                                    "load":"Scenario_MR.measId:2___servCellId_0_rsrp_23___nbr_pci154_rsrp_22",
+                                    "add_pdcp_hdr":1
+                                },
+                                "SRBID":1
+                            }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "INTER_Pre_DU_S",
+                                    "stateCmd": "IntraRatHO_cmd",
+                                    "hoType_initiated": 54
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Handover.InterGnb_XnHandover_Prep_128"
+                    },
+                    {
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd"
+                                }
+                            ]
+                        }
+                    },
+                    {   "name": "g_f1ULRRCMessageTransfer_MeasurementReport_Msg",
+                        "modify":{
+                            "f1":{
+                                "gNB_DU_UE_F1AP_ID":4,
+                                "RRCContainer":{
+                                    "load":"Scenario_MR.measId:2___servCellId_0_rsrp_23___nbr_pci151_rsrp_22",
+                                    "add_pdcp_hdr":1
+                                },
+                                "SRBID":1
+                            }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "INTER_Pre_DU_S",
+                                    "stateCmd": "IntraRatHO_cmd",
+                                    "hoType_initiated": 54
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Handover.InterGnb_XnHandover_Prep_129"
+                    },
+                    {
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "182"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd",
+                            "condHoInfo.numOfCellList": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "31",
+            "name": "Set_startTime_of_UeHistory_when_storing_RRCResumeRequest1",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54111",
+                    "desc": "Check to save startTime for UE history in RRC Resume procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "uehistory", "80"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "ueHistory.startTime": "valid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "32",
+            "name": "RRCResume_fallback_to_RRCSetup_procedure_due_to_NoUeContext",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54112",
+                    "desc": "Check to save startTime for UE history in RRC Resume fallback to RRC Setup procedure."
+                },
+                {
+                    "key": "RCC-T54136",
+                    "desc": "Check that RRC_INACTIVE_INFO_DU_ID(RrcInact_RrcResumeReq,RrcInact_RrcSetup) statistics are not being collected."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCResumeRequest1_CallNotFound"
+                    },
+                    {
+                        "name": "g_SA_XN_RetrieveUEContextFailure",
+                        "modify": {
+                            "gnbid":120040,
+                            "gnbnum":0,
+                            "xn":{
+                                "NG_RANnodeUEXnAPID":80
+                            }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                        "callId":80,
+                        "modify": {
+                            "f1":{
+                                "gNB_DU_UE_F1AP_ID": 4
+                            }
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "uehistory", "80"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "ueHistory.startTime": "valid"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":2, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":6, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5223, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5223, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":4, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                },
+                "checkNoStat": {
+                    "statList": [
+                        { "family_id":5896 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "33",
+            "name": "RRCResume_fallback_to_RRCSetup_procedure_due_to_NoUeContext_with_IndexgNBDUId",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54134",
+                    "desc": "When F_BasicOperation_IndexgNBDUId is on, check if RRC_INACTIVE_INFO_DU_ID(RrcInact_RrcResumeReq,RrcInact_RrcSetup) statistics are collected."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list": [
+                            [ "itscp", "set", "cfg", "foo", "F_BasicOperation_IndexgNBDUId", "1"]
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCResumeRequest1_CallNotFound"
+                    },
+                    {
+                        "name": "g_SA_XN_RetrieveUEContextFailure",
+                        "modify": {
+                            "gnbid":120040,
+                            "gnbnum":0,
+                            "xn":{
+                                "NG_RANnodeUEXnAPID":80
+                            }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                        "callId":80,
+                        "modify": {
+                            "f1":{
+                                "gNB_DU_UE_F1AP_ID": 4
+                            }
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "uehistory", "80"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "ueHistory.startTime": "valid"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5896, "type_id":0, "update_val": 1, "idx0":120040, "idx1":1, "idx2":0, "idx3":4, "idx4":0, "idx5":0 },
+                        {"family_id":5896, "type_id":2, "update_val": 1, "idx0":120040, "idx1":1, "idx2":0, "idx3":4, "idx4":0, "idx5":0 },
+                        {"family_id":5896, "type_id":6, "update_val": 1, "idx0":120040, "idx1":1, "idx2":0, "idx3":4, "idx4":0, "idx5":0 }
+                    ]
+                },
+                "checkNoStat": {
+                    "statList": [
+                        { "family_id":5442, "NotChange":true }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "34",
+            "name": "RRCResume_fallback_to_RRCSetup_procedure_due_to_NoUeContext_when_resume_cause_is_RNAUpdate",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T58714"
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":4,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU_Invalid_MAC-I",
+                                    "hex_log":0
+                                }
+                            },
+                            "gnbid":120040,
+                            "gnbnum":0,
+                            "endPointIdx":0
+                        },
+                        "main_thread":1
+                    },
+                    {
+                        "name": "g_SA_CallSetupReq_F1_InitialULRRCMessageTransfer_RRCResumeRequest1",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":4,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU_Invalid_MAC-I",
+                                    "hex_log":0
+                                }
+                            },
+                            "gnbid":120040,
+                            "gnbnum":0
+                        },
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_XN_RetrieveUEContextFailure",
+                        "modify": {
+                            "gnbid":120040,
+                            "gnbnum":0,
+                            "xn":{
+                                "NG_RANnodeUEXnAPID":80
+                            }
+                        },
+                        "callId":80
+                    },
+                    {
+                        "name": "g_SA_F1_ULRRCMessageTransfer_NRRRC_RrcSetupComplete",
+                        "callId":80,
+                        "modify": {
+                            "f1":{
+                                "gNB_DU_UE_F1AP_ID": 4
+                            }
+                        },
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "uehistory", "80"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5223, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":16, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5223, "type_id":1, "update_val": 1, "idx0":120040, "idx1":0, "idx2":16, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "35",
+            "name": "Clear_UeHistoryInfo_after_RRC_Suspend_procedure",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54110",
+                    "desc": "Check to delete UE history info in RRC Suspend procedure."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "uehistory", "80"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "ueHistory.startTime": "not_valid"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "36",
+            "name": "RRCResume_procedure_triggered_by_RRCResumeRequest1_with_IndexgNBDUId",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54130",
+                    "desc": "When F_BasicOperation_IndexgNBDUId is on, check if RRC_INACTIVE_INFO_DU_ID(RrcInact_RrcResumeReq,RrcInact_RrcResume) statistics are collected."
+                },
+                {
+                    "key": "RCC-T54131",
+                    "desc": "When F_BasicOperation_IndexgNBDUId is on, check if RRC_CONN_INFO_DU_ID(CallHoldingTimeAvg,InactCallHoldingTimeAvg) statistics are collected."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list": [
+                            [ "itscp", "set", "cfg", "foo", "F_BasicOperation_IndexgNBDUId", "1"]
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "182"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5829, "type_id":4, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5896, "type_id":0, "update_val": 1, "idx0":120040, "idx1":1, "idx2":0, "idx3":4, "idx4":0, "idx5":0 },
+                        {"family_id":5896, "type_id":1, "update_val": 1, "idx0":120040, "idx1":1, "idx2":0, "idx3":4, "idx4":0, "idx5":0 },
+                        {"family_id":5829, "type_id":11, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                },
+                "checkNoStat": {
+                    "statList": [
+                        { "family_id":5442, "NotChange":true },
+                        { "family_id":5217, "NotChange":true }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "37",
+            "name": "RRCResume_procedure_after_turning_off_RRCInactive_feature",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T55026",
+                    "desc": "Check RRC Resume procedure operation in gNB that does not support RRC Inactive feature."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "func_name": "setRrcInactiveParameter",
+                        "gnbNum":0,
+                        "featureEnabled" : 0
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-C"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "38",
+            "name": "InterDu_Handover_after_RRCResume_procedure",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T54128",
+                    "desc": "When F_BasicOperation_IndexgNBDUId is off, check if RRC_INACTIVE_INFO_DU_ID(RrcInact_RrcResumeReq,RrcInact_RrcResume) statistics are not collected."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend_without_F1_UEContextReleaseComplete"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.IntraGnb_RRCResume"
+                    },
+                    {
+                        "func_name": "t_setHandoverConfiguration",
+                        "targetCellId": 1966735381,
+                        "callId":80
+                    },
+                    {
+                        "func_name": "t_setHandoverOnDemand",
+                        "callId":80
+                    },
+                    {
+                        "load": "Scenario_SA_Handover.Trigger_IntraGnb_InterDU_Handover_Succ_without_MR"
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "182"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "39",
+            "name": "RRCConnToIdle_procedure_because_gNB_does_not_support_RRC_Inactive_feature",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC_T53703",
+                    "desc": "When F_RRCInactiveDay1 is off, release procedure is triggered instead of rrc inactive."
+                }
+            ],
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg": [
+                    {
+                        "before_mmc_list": [
+                            ["itscp", "set", "cfg", "foo", "F_RRCInactiveDay1", "0"]
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "after_mmc_list": [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Conn_RelCmd_ByUserInact",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "40",
+            "name": "RRCSuspend_procedure__failure_due_to_invalid_TAC",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T76367",
+                    "desc": "The serving cell don't satisfy TAI List for RRC Inactive and being released."
+                }
+            ],
+            "input": {
+                "skip":1,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1_without_CoreNetworkAssistanceInfo"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "usage": 1,
+                                    "state": "Conn",
+                                    "stateCmd": "Idle_cmd",
+                                    "servedPlmn": 45005
+                                }
+                            ]
+                        },
+                        "checkCell":{
+                            "cellList":[
+                                { "cellNum":0, "tac":4660 }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "AUTOMATION"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "cfg", "cell", "cellInfo", "0"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkMsg": {
+                    "msgList": [
+                        {    
+                            "msgId": "NG_InitialContextSetupRequestAmfAll",
+                            "callState": "Est",
+                            "jsonIEChecker": {
+                                "include": [
+                                    {
+                                        "id": "id_NG_CoreNetworkAssistanceInformationForInactive",
+                                        "value": {
+                                            "tAIListForInactive": [
+                                                {
+                                                    "pLMNIdentity": "0",
+                                                    "tAC": "0"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5172, "type_id":206, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "41",
+            "name": "SaRrcInactive__RRC_INACT_to_RRC_IDLE__with_resumeCause_mpsPriorityAccess",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T76378",
+                    "desc": "In RRC_INACT to RRC_IDLE procedure, if resume cause is mps-PriorityAccess, the call is released."
+                },
+                {
+                    "key": "RCC-T76379",
+                    "desc": "In RRC_INACT to RRC_IDLE procedure, if resume cause is mps-PriorityAccess, the call is released."
+                }
+            ],
+            "input": {
+                "skip":1,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mps_PriorityAccess",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "name": "AUTOMATION"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "cfg", "gnb", "rrcInactiveInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5217, "type_id":4, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":206, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":18, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":11, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "42",
+            "name": "SaRrcInactive__RRC_INACT_to_RRC_IDLE__with_resumeCause_highPriorityAccess",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T76380",
+                    "desc": "In RRC_INACT to RRC_IDLE procedure, if resume cause is highPriorityAccess, the call is released."
+                }
+            ],
+            "input": {
+                "skip":1,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_RrcInactive.RRCSuspend"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_highPriorityAccess",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "name": "AUTOMATION"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "cfg", "gnb", "rrcInactiveInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5217, "type_id":4, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":206, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":18, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":11, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "43",
+            "name": "Receive_RESET_in_RRC_INACT__Transfer_to_RRC_IDLE_with_resumeCause_mtAccess",
+            "testCaseInfo" : [
+                {
+                    "key": "RCC-T76381",
+                    "desc": "In RRC Inactive state, if VCCB receives RESET and resume cause as mt-Access, it goes to RRC Idle."
+                },
+                {
+                    "key": "RCC-T76382",
+                    "desc": "In RRC Inactive state, if VCCB receives RESET and resume cause as mt-Access, it goes to RRC Idle."
+                }
+            ],
+            "input": {
+                "skip":1,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "func_name": "t_CallReleaseCommand"
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_mt_Access",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":81,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "name": "AUTOMATION"
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "cfg", "gnb", "rrcInactiveInfo"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5217, "type_id":4, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5172, "type_id":85, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":18, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5217, "type_id":11, "idx0":0, "idx1":120040, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "44",
+            "name": "RNAUpdate_RRCResume_Retransmission__Dbg_Off",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list": [
+                            ["itscp", "set", "dbg", "flag", "keepIrntiUntilProcComplt", "off"]
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "ueInfo.ueId.iRNTI": 54504
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":80,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":4, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "45",
+            "name": "RNAUpdate_RRCResume_Retransmission__Dbg_On",
+            "input": {
+                "skip":0,
+                "print":{
+                    "DBG->localLevel": 1
+                },
+                "msg" : [
+                    {
+                        "before_mmc_list": [
+                            ["itscp", "set", "dbg", "flag", "keepIrntiUntilProcComplt", "on"]
+                        ]
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend",
+                        "checkUe": {
+                            "ueList": [
+                                {
+                                    "callId": 80,
+                                    "ueInfo.ueId.iRNTI": 54504
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1":{
+                                "NRCGI":1966735360,
+                                "gNB_DU_UE_F1AP_ID":5,
+                                "RRCContainer":{
+                                    "name":"RRC_ResumeRequest1_resumeCause_RNAU",
+                                    "hex_log":0
+                                }
+                            }
+                        },
+                        "callId":80,
+                        "gnbId": 120040,
+                        "main_thread":1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId":80
+                    },
+                    {
+                        "check_msginformation":1,
+                        "after_mmc_list" : [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255", "-v2"],
+                            ["#itscp", "get", "log", "msg", "-d", "87"],
+                            ["#itscp", "get", "log", "msg", "-d", "12"],
+                            ["#itscp", "get", "cfg", "cell", "cellinfo"],
+                            ["#itscp", "get", "cfg", "gnb", "info"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 1,
+                            "state": "Inact_Suspend",
+                            "stateCmd": "Idle_cmd"
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order":true,
+                    "statList": [
+                        {"family_id":5442, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5442, "type_id":4, "update_val": 1, "idx0":120040, "idx1":0, "idx2":8, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "46",
+            "name": "Explicit_release_triggered_by_E1BearerContextReleaseRequest_in_suspend_state",
+            "testCaseInfo": [
+                {
+                    "key": "RCC-T76351",
+                    "desc": "In case of receiving E1_BearerContextReleaseRequest in suspend state, 1) enqueue 2) send RAN-Paging 3) resume procedure 4) dequeue 5) call release."
+                }
+            ],
+            "input": {
+                "skip": 0,
+                "print": {
+                    "DBG->localLevel": 1
+                },
+                "msg": [
+                    {
+                        "load": "Scenario_SA_Attach.Attach_PLMN_1_RRC_Suspend"
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextReleaseRequest",
+                        "callId": 80,
+                        "GNB-CU-CP-UE-E1AP-ID": 80,
+                        "GNB-CU-UP-UE-E1AP-ID": 2,
+                        "cause": {
+                            "radioNetwork": 5
+                        }
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1": {
+                                "NRCGI": 1966735360,
+                                "gNB_DU_UE_F1AP_ID": 5,
+                                "RRCContainer": {
+                                    "name": "RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log": 0
+                                }
+                            }
+                        },
+                        "callId": 81,
+                        "gnbId": 120040,
+                        "main_thread": 1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_F1_UEContextSetupResponse",
+                        "callId": 80,
+                        "modify": {
+                            "f1": {
+                                "gNB_DU_UE_F1AP_ID": 5
+                            }
+                        }
+                    },
+                    {   "callId": 80, "name": "json_make",
+                        "msgName": "F1_ULRRCMessageTransfer",
+                        "RRCContainer": {
+                            "load": "Scenario_NRRRC.rrcResumeComplete.example"
+                        }
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "modify": {
+                            "ng": { "cause": { "radioNetwork": 20 } }
+                        },
+                        "callId": 80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "before_mmc_list": [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order": true,
+                    "statList": [
+                        {"family_id":5216, "type_id":2, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5449, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 },
+                        {"family_id":5216, "type_id":0, "update_val": 1, "idx0":120040, "idx1":0, "idx2":0, "idx3":0, "idx4":0, "idx5":0 }
+                    ]
+                },
+                "checkMsg": {
+                    "msgList": [
+                        {
+                            "callState": "Inact_Suspend",
+                            "msgId": "msgCallPagingReq_VccbVnmb"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "47",
+            "name": "T76352_Explicit_release_triggered_by_E1BearerContextReleaseRequest_in_suspend",
+            "testCaseInfo": [
+                {
+                    "key": "RCC-T76352",
+                    "desc": "In case of receiving E1_BearerContextReleaseRequest before suspend state, directly release the call."
+                }
+            ],
+            "input": {
+                "skip": 0,
+                "print": {
+                    "DBG->localLevel": 1
+                },
+                "msg": [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextReleaseRequest",
+                        "callId": 80,
+                        "GNB-CU-CP-UE-E1AP-ID": 80,
+                        "GNB-CU-UP-UE-E1AP-ID": 2,
+                        "cause": {
+                            "radioNetwork": 5
+                        }
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId": 80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "after_mmc_list": [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order": true,
+                    "statList": [
+                        {"family_id": 5216, "type_id": 0, "update_val": 1, "idx0": 120040, "idx1": 0, "idx2": 0, "idx3": 0, "idx4": 0, "idx5": 0 },
+                        {"family_id": 5172, "type_id": 92, "update_val": 1, "idx0": 120040, "idx1": 0, "idx2": 0, "idx3": 0, "idx4": 0, "idx5": 0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "48",
+            "name": "T76353_Explicit_release_triggered_by_NGUEContextReleaseCommand_before_suspend",
+            "testCaseInfo": [
+                {
+                    "key": "RCC-T76353",
+                    "desc": "In case of receiving NG_UEContextReleaseCommand before suspend state, directly release the call."
+                }
+            ],
+            "input": {
+                "skip": 0,
+                "print": {
+                    "DBG->localLevel": 1
+                },
+                "msg": [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId": 80
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_RELEASE_COMPLETE",
+                        "callId": 80
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "after_mmc_list": [
+                            ["#itscp", "get", "log", "hist", "-C", "-a", "-L4", "-o255"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order": true,
+                    "statList": [
+                        {"family_id": 5216, "type_id": 1, "update_val": 1, "idx0": 120040, "idx1": 0, "idx2": 0, "idx3": 0, "idx4": 0, "idx5": 0 },
+                        {"family_id": 5172, "type_id": 128, "update_val": 1, "idx0": 120040, "idx1": 0, "idx2": 0, "idx3": 0, "idx4": 0, "idx5": 0 }
+                    ]
+                }
+            }
+        },
+        {
+            "desc": "49",
+            "name": "T76353_Explicit_release_triggered_by_NGUEContextReleaseCommand_in_suspend",
+            "testCaseInfo": [
+                {
+                    "key": "RCC-T76353",
+                    "desc": "In case of receiving NG_UEContextReleaseCommand before suspend state, directly release the call."
+                }
+            ],
+            "input": {
+                "skip": 0,
+                "print": {
+                    "DBG->localLevel": 1
+                },
+                "msg": [
+                    {
+                        "load": "Scenario_SA_Attach.RRCSetup_SELECT_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.NG_InitialContextSetupRequest_MRL_SERVING_PLMN_1"
+                    },
+                    {
+                        "load": "Scenario_SA_Attach.After_NG_InitialContextSetupRequest_TO_CONN"
+                    },
+                    {
+                        "timeout": "timInternalUserInactivitySig_id",
+                        "callId": 80
+                    },
+                    {
+                        "name": "json_make",
+                        "msgName": "E1_BearerContextInactivityNotification",
+                        "callId": 80,
+                        "ActivityInformation": {
+                            "uE-Activity": "not-active"
+                        }
+                    },
+                    {
+                        "name": "F1_UE_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "E1_BEARER_CONTEXT_MODIFICATION_RESPONSE",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_NG_UEContextReleaseCommand",
+                        "callId": 80
+                    },
+                    {
+                        "name": "g_SA_CallResumeInd_F1_InitialULRRCMessageTransfer",
+                        "modify": {
+                            "f1": {
+                                "NRCGI": 1966735360,
+                                "gNB_DU_UE_F1AP_ID": 4,
+                                "RRCContainer": {
+                                    "name": "RRC_ResumeRequest1_resumeCause_mo-Data",
+                                    "hex_log": 0
+                                }
+                            }
+                        },
+                        "callId": 81,
+                        "gnbId": 120040,
+                        "main_thread": 1
+                    },
+                    {
+                        "func_name": "t_handle_relay_internal_message",
+                        "callId": 80
+                    },
+                    {
+                        "name": "AUTOMATION"
+                    },
+                    {
+                        "check_msginformation": 1,
+                        "after_mmc_list": [
+                            ["itscp", "get", "log", "hist", "-C", "-a", "-L5", "-o255"]
+                        ]
+                    }
+                ]
+            },
+            "output": {
+                "numCopyMsg": -1,
+                "checkUe": {
+                    "ueList": [
+                        {
+                            "callId": 80,
+                            "usage": 0
+                        }
+                    ]
+                },
+                "checkStat": {
+                    "order": true,
+                    "statList": [
+                        {"family_id": 5216, "type_id": 0, "update_val": 1, "idx0": 120040, "idx1": 0, "idx2": 0, "idx3": 0, "idx4": 0, "idx5": 0 },
+                        {"family_id": 5172, "type_id": 206, "update_val": 1, "idx0": 120040, "idx1": 0, "idx2": 0, "idx3": 0, "idx4": 0, "idx5": 0 }
+                    ]
+                }
+            }
+        }
+    ]
+}
