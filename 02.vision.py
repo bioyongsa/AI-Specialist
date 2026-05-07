@@ -1,3 +1,6 @@
+# Transformer Encoder: (Pre-LN -> MSA -> Residual) + (Pre-LN -> FFN -> Residual)을 반복 수행)
+# FFN: nnSequential(nn.Linear(dim, hidden_dim), nn.ReLU(), nn.Dropout(dropout), nn.Linear(hidden_dim, dim), nn.Dropout(dropout))
+
 class PreNorm(nn.Module):  # Transformer의 Pre-LN 구조: LayerNorm 후 블록 실행
     def __init__(self, dim, fn):
         super().__init__()
@@ -9,7 +12,7 @@ class PreNorm(nn.Module):  # Transformer의 Pre-LN 구조: LayerNorm 후 블록 
 class FeedForward(nn.Module):  # Transformer의 FFN(MLP) 블록 -> 패치 자체의 정보를 더 깊게 분석
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
-        self.net = nn.Sequential(  # FFN: Linear→GELU→Dropout→Linear→Dropout 구성
+        self.net = nn.Sequential(
             nn.Linear(dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
@@ -22,12 +25,11 @@ class FeedForward(nn.Module):  # Transformer의 FFN(MLP) 블록 -> 패치 자체
 class Attention(nn.Module):
     def __init__(self, dim, heads = 4, dim_head = 64, dropout = 0.):
         super().__init__()
-        inner_dim = dim_head *  heads  # 전체 헤드 차원 = head 수 × head 차원 [SG] !!!!
+        inner_dim = dim_head * heads      # 전체 헤드 차원 = head 수 × head 차원
         project_out = not (heads == 1 and dim_head == dim)
 
         self.heads = heads  # 멀티헤드 개수 저장
         self.scale = dim_head ** -0.5  # Scaled dot-product를 위한 스케일(1/√d)
-
         self.attend = nn.Softmax(dim = -1)  # attention score를 확률로 변환(softmax), 마지막 차원 : sequence length N
         self.last_attn = None  # (학습/추론 시) 마지막 forward에서의 attention map 저장용(시각화/분석)  # attention score를 확률로 변환(softmax), 마지막 차원 : sequence length N
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)  # 입력 토큰→Q,K,V를 한 번에 선형 변환 [SG] RGB 3개의 head를 한번에!!!
