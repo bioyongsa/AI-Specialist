@@ -1,6 +1,6 @@
 # VCCB AI 추론 기능 구현 현황
 
-> **기준일**: 2026-05-21
+> **기준일**: 2026-05-23
 >
 > **설계 기반**: `VCCB_AI_Integration_DetailedDesign.md`
 >
@@ -22,10 +22,13 @@
 
 | 파일 | 위치 | 주요 변경 내용 |
 |---|---|---|
-| `VccbAiClient.cpp` | `VCCB_MAIN/src/` | 핵심 AI 정책 로직 전면 재구현 |
-| `VccbAiClient.h` | `VCCB_MAIN/hdr/` | `VCCB_AI_INFER_TIMEOUT_US` 상수 추가 |
-| `FeatRrcInactive.cpp` | `VCCB_FEAT/RRC_INACTIVE/src/` | 포인트② BearerContextModification 전송 연동 |
+| `VccbAiClient.cpp` | `VCCB_MAIN/src/` | 핵심 AI 정책 로직 전면 재구현 + 포인트④⑤ 신규 API + 전역 통계 + 24h 슬라이딩 윈도우 |
+| `VccbAiClient.h` | `VCCB_MAIN/hdr/` | 포인트④⑤ 함수 선언, 전역 통계 구조체, `VccbAiClient_PrintStats()` 추가 |
+| `VccbAiEngine.h` | `VCCB_MAIN/hdr/` | `VccbAiCallContext_type`에 `resumeTs[10]`, `resumeTsWriteIdx` 필드 추가 |
+| `FeatRrcInactive.cpp` | `VCCB_FEAT/RRC_INACTIVE/src/` | 포인트② BearerContextModification 전송 연동, 포인트④ RNA Update AI 로그 추가 |
 | `MsgE1apMake.cpp` | `VCCB_MSG/E1AP/src/` | 포인트① AI 타이머 추천 함수 연결 |
+| `StateSaRrcInact.cpp` | `VCCB_STATE/FEAT_SA/src/` | 포인트③ `VccbAiClient_OnResumeRequest()` 연결 |
+| `StateSaHo.cpp` | `VCCB_STATE/FEAT_HO/src/` | 포인트⑤ `VccbAiClient_SeedFromXnapHistory()` 호출 추가 |
 | `MainInit.cpp` | `VCCB_MAIN/src/` | `VccbAiClient_Reset()` 초기화 호출 추가 |
 
 ---
@@ -37,19 +40,31 @@
 | 항목 | 파일 | 내용 |
 |---|---|---|
 | **포인트② `IsAbleToProceedInactive` 재구현** | `VccbAiClient.cpp` | AI 추론(`GRU + MLP`) 실제 호출. `resume_prob ≥ 0.6` 시 타이머·타임스탬프 저장 후 `false` 반환(INACTIVE 보류). `extendCount ≥ 3` 시 카운터 리셋 후 강제 INACTIVE 천이(`true`). Fallback 시 `true`(기존 동작 유지). |
-| **포인트② BearerContextModification 전송** | `FeatRrcInactive.cpp` | AI가 `false` 반환 시 `VEIL_sendE1SetupModRelRequest(E1Procedure_BearerContextModification)` fire-and-forget 호출. 오류 로그 포함. `#include "MsgE1apSend.h"` 추가. |
-| **포인트① E1AP inactivityTimer IE 연결** | `MsgE1apMake.cpp` | `VEIL_fillE1_Inactivity_Timer()` 내 `FnVCCB_GetRRCInactiveTimerValue()` 직접 호출 → `VccbAiClient_RecommendInactivityTimer()` 래퍼로 교체. `#include "VccbAiClient.h"` 추가. |
+| **포인트② BearerContextModification 전송** | `FeatRrcInactive.cpp` | AI가 `false` 반환 시 `VEIL_sendE1SetupModRelRequest(E1Procedure_BearerContextModification)` fire-and-forget 호출. `#include "MsgE1apSend.h"` 추가. |
+| **포인트① E1AP inactivityTimer IE 연결** | `MsgE1apMake.cpp` | `VEIL_fillE1_Inactivity_Timer()` 내 `FnVCCB_GetRRCInactiveTimerValue()` 직접 호출 → `VccbAiClient_RecommendInactivityTimer()` 래퍼로 교체. |
+| **포인트③ Resume 이력 기록** | `StateSaRrcInact.cpp` | `FnVCCB_Inact_ProcRRCResumeRequest1()` 에서 `VccbAiClient_OnResumeRequest()` 호출. RNA Update 분기 제외. |
+| **포인트④ RNA Update AI 권고 로그** | `FeatRrcInactive.cpp` | `FnVCCB_SetRRCInactiveAction_after_RRCResumeRequest()` 의 RNA Update(`NRRRC_rna_Update && dlDataFlag == OFF`) 분기에서 `VccbAiClient_OnRnaUpdate()` 호출. resume_prob 기반 RNA 크기 권고(`KEEP_OR_EXPAND` / `NO_CHANGE` / `SHRINK`) 로그 출력. |
+| **포인트⑤ XnAP HO AI Context seed** | `StateSaHo.cpp` | `VCCB_ProcMsgXnap_HandoverRequest()` 내 `FnVCCB_StoreXNMessage()` 직후 `VccbAiClient_SeedFromXnapHistory()` 호출. `visitedCell[lastIdx].uRat.nrCell.stayTime` (+ `stayTimeEnhanced`) 을 `aiCtx.history[]` 에 seed. |
 
 ### 2-2. 안정성 보강
 
 | 항목 | 파일 | 내용 |
 |---|---|---|
-| **`IS_REDCAP_UE` / `IS_NRDC_MN,SN` skip 활성화** | `VccbAiClient.cpp` | `shouldSkipAi()` 내 주석 처리된 코드 활성화. 매크로 위치 `ComMacro.h` 확인 완료. |
-| **글로벌 카운터 멀티스레드 안전 처리** | `VccbAiClient.cpp` | `int32_t` / `bool` → `std::atomic<int32_t>` / `std::atomic<bool>` 교체. `fetch_add()`, `store()` 사용. C++11 환경(`Makefile.body` 확인됨). |
-| **`VccbAiClient_Reset()` 초기화 호출 추가** | `MainInit.cpp` | `FnVCCB_InitBlock()` 내 `VccbAiEngine_Init()` 직후 `VccbAiClient_Reset()` 호출. `#include "VccbAiClient.h"` 추가. |
-| **추론 타임아웃(1ms) 측정 및 Fallback 연동** | `VccbAiClient.cpp` | `clock_gettime(CLOCK_MONOTONIC)` 기반 `runInferWithTimeout()` 헬퍼 구현. `VCCB_AI_INFER_TIMEOUT_US(1000us)` 초과 시 `noteInferFailure()` 처리. |
+| **`IS_REDCAP_UE` / `IS_NRDC_MN,SN` skip** | `VccbAiClient.cpp` | `shouldSkipAi()` 내 REDCAP/NRDC 분기 활성화. |
+| **글로벌 카운터 멀티스레드 안전** | `VccbAiClient.cpp` | `std::atomic<int64_t>` 전역 통계 카운터 사용 (C++11). |
+| **`VccbAiClient_Reset()` 초기화** | `MainInit.cpp` | `FnVCCB_InitBlock()` 내 `VccbAiEngine_Init()` 직후 호출. 통계 카운터 전체 리셋. |
+| **추론 타임아웃(1ms) 측정 및 Fallback 연동** | `VccbAiClient.cpp` | `clock_gettime(CLOCK_MONOTONIC)` 기반. `VCCB_AI_INFER_TIMEOUT_US(1000us)` 초과 시 `timeoutCount` 증가 + Fallback. |
 
-### 2-3. Feature 벡터 매핑 (확인된 필드)
+### 2-3. 기능 보완
+
+| 항목 | 파일 | 내용 |
+|---|---|---|
+| **24h 슬라이딩 윈도우 resumeCount24h** | `VccbAiClient.cpp`, `VccbAiEngine.h` | `aiCtx`에 `resumeTs[10]` 타임스탬프 링 버퍼 추가. `OnResumeRequest()` 호출마다 현재 시각 기록 후 24h 이내 항목 카운트. |
+| **resumeSuccessRate 실패 판단 로직** | `VccbAiClient.cpp` | `NRRRC_emergency` cause = 실패(0.0f), 그 외 = 성공(1.0f). EMA(α=0.1) 갱신. |
+| **전역 AI 추론 통계 구조체** | `VccbAiClient.h`, `.cpp` | `VccbAiGlobalStats_type`: 총 요청·성공·실패·타임아웃·Fallback·트리거별·평균 추론 시간. |
+| **통계 출력 (`VccbAiClient_PrintStats`)** | `VccbAiClient.cpp` | `VCCB_PRINTF` 기반 포맷 출력. itscp 핸들러 또는 디버그 커맨드에서 호출 가능. |
+
+### 2-4. Feature 벡터 매핑 (확인된 필드)
 
 | stat[] | Feature 이름 | 접근 경로 |
 |---|---|---|
@@ -60,8 +75,8 @@
 | `stat[6]` | last_rsrp | `servCellSsbRsrp` (값 `255` = invalid → `0.0f` 처리) |
 | `stat[8]` | rna_cell_count | `ueInfo.RrcInactiveInfo.numInactTAI` |
 | `stat[9]` | avg_cell_stay_sec | `aiCtx.avgDurationSec` (EMA) |
-| `stat[10]` | resume_count_24h | `aiCtx.resumeCount24h` |
-| `stat[11]` | resume_success_rate | `aiCtx.resumeSuccessRate` (EMA) |
+| `stat[10]` | resume_count_24h | `aiCtx.resumeCount24h` (24h 슬라이딩 윈도우) |
+| `stat[11]` | resume_success_rate | `aiCtx.resumeSuccessRate` (EMA, NRRRC_emergency = 실패) |
 | `stat[12]` | avg_inactive_duration | `aiCtx.avgDurationSec` |
 | `stat[13]` | hour_of_day | `localtime(time(NULL))->tm_hour` |
 | `stat[14]` | day_of_week | `localtime(time(NULL))->tm_wday` |
@@ -70,28 +85,20 @@
 
 ## 3. 남은 항목
 
-### 3-1. 🔴 높음 — Feature 벡터 미확인 필드
+### 3-1. 🟡 중간 — Feature 벡터 미확인 필드
 
 | stat[] | Feature 이름 | 현재 값 | 해결 방법 |
 |---|---|---|---|
-| `stat[4]` | cn_expected_idle_period | `0.0f` (고정) | `VccbStruct.h` 및 NGAP InitialContextSetupRequest 처리 코드에서 `coreNetworkAssistance` → `expectedIdlePeriod` 저장 위치 추적 |
-| `stat[5]` | cn_stationary | `0.0f` (고정) | 동상 — `stationaryIndication` 필드 경로 확인 |
-| `stat[7]` | neighbor_cell_count | `0.0f` (고정) | MeasurementReport 저장 구조체(`measResultNeighCell` 계열) 내 인접 셀 수 필드 확인. `VccbStruct.h` 내 `nbrCell`, `neighborCell` 검색. |
+| `stat[4]` | cn_expected_idle_period | `0.0f` (고정) | 5G NR NGAP CoreNetworkAssistanceInformation에 해당 필드 미존재. 향후 NGAP 규격 확장 시 `VccbStruct.h` `ueInfo.RrcInactiveInfo` 계열에서 확인. |
+| `stat[5]` | cn_stationary | `0.0f` (고정) | 동상 — NGAP stationaryIndication 필드 경로 미확인. |
+| `stat[7]` | neighbor_cell_count | `0.0f` (고정) | `NRRRC_MeasurementReport` 처리 후 ptCi에 저장되는 인접 셀 카운트 필드 미확인. `VccbStruct.h` 내 `measResult`, `nbrCellCount` 계열 검색 필요. |
 
-### 3-2. 🟡 중간 — 기능 보완
-
-| 항목 | 파일 | 내용 |
-|---|---|---|
-| **포인트④ RNA Update 시 AI 권고 로그** | `FeatRrcInactive.cpp` | `FnVCCB_SetRRCInactiveAction_after_RRCResumeRequest()` 내 `resumeCause == NRRRC_rna_Update && dlDataFlag == VCCB_FLAG_OFF` 분기에서 AI RNA 크기 권고값 조회 및 로그 출력. |
-| **포인트⑤ XnAP HO 시 AI Context seed** | `StateHandleSa.cpp` 등 | XnAP HandoverRequest 수신 후 `VLIB_InitCallInfo()` 직후, UE History(`Time UE Stayed in Cell`)를 `aiCtx.history` 버퍼에 seed. 코드베이스에서 `XN_HandoverRequest` 또는 `RetrieveUEContextRequest` 검색하여 핸들러 위치 확인 필요. |
-| **24h 슬라이딩 윈도우 Resume 카운트** | `VccbAiClient.cpp` | `resumeCount24h` 현재 단순 increment. 24h 이내 이벤트만 카운트하는 슬라이딩 윈도우 구현 필요. 타임스탬프 링 버퍼(`aiCtx` 내 추가) 또는 이벤트 시각 배열 활용. |
-| **Resume 성공률 실패 판단 로직** | `VccbAiClient.cpp` | `resumeSuccessRate` 현재 모든 Resume을 성공으로 처리(`isSuccess = 1.0f`). `resumeCause` 값에 따라 실패 여부 구분 필요. `NRRRC_emergency`, `NRRRC_rna_Update` 등 설계서 섹션 1-3 매핑 테이블 참조. |
-
-### 3-3. 🟢 낮음 — 디버그 및 운영
+### 3-2. 🟢 낮음 — 통합 및 운영
 
 | 항목 | 파일 | 내용 |
 |---|---|---|
-| **추론 통계 출력 (`itscp_vccb`)** | 기존 itscp 핸들러 | 설계서 섹션 2-6 항목. AI Client 상태(Active/Fallback/Init), 총 요청·성공·실패·Fallback 수, 트리거별 요청 수(포인트①②③④), 평균 추론 소요시간(us). 전역 통계 구조체 추가 후 itscp 출력 함수에 연결. |
+| **itscp_vccb 디버그 커맨드 연결** | itscp 핸들러 | `VccbAiClient_PrintStats()` 를 itscp 디버그 커맨드 핸들러에 연결. 현재는 단독 함수로 구현 완료. 핸들러 식별 후 연결 작업 필요. |
+| **stat[4][5][7] 실제 필드 매핑** | `VccbAiClient.cpp` | 위 3-1 항목 해결 후 `buildAiInput()` 의 `stat[4]`, `stat[5]`, `stat[7]` 코드 교체. |
 
 ---
 
@@ -103,19 +110,19 @@
 | `stat[1]` | drb_count | ✅ 완료 | |
 | `stat[2]` | ue_ambr_dl_mbps | ✅ 완료 | bps → Mbps 변환 |
 | `stat[3]` | has_gbr_flow | ✅ 완료 | |
-| `stat[4]` | cn_expected_idle_period | ❌ TODO | 필드 경로 미확인, 현재 `0.0f` |
-| `stat[5]` | cn_stationary | ❌ TODO | 필드 경로 미확인, 현재 `0.0f` |
+| `stat[4]` | cn_expected_idle_period | ⚠️ 0.0f | 5G NR NGAP에 해당 필드 미존재, 향후 규격 확장 시 대응 |
+| `stat[5]` | cn_stationary | ⚠️ 0.0f | 동상 |
 | `stat[6]` | last_rsrp | ✅ 완료 | `servCellSsbRsrp`, 255=invalid 처리 |
-| `stat[7]` | neighbor_cell_count | ❌ TODO | 필드 경로 미확인, 현재 `0.0f` |
+| `stat[7]` | neighbor_cell_count | ❌ TODO | MeasurementReport 저장 필드 경로 미확인 |
 | `stat[8]` | rna_cell_count | ✅ 완료 | `numInactTAI` |
 | `stat[9]` | avg_cell_stay_sec | ✅ 완료 | `avgDurationSec` 재사용 |
-| `stat[10]` | resume_count_24h | ⚠️ 부분 | 단순 increment, 슬라이딩 윈도우 미구현 |
-| `stat[11]` | resume_success_rate | ⚠️ 부분 | EMA 구조 있으나 항상 `1.0f` |
+| `stat[10]` | resume_count_24h | ✅ 완료 | 24h 슬라이딩 윈도우 구현 (`resumeTs[10]` 링 버퍼) |
+| `stat[11]` | resume_success_rate | ✅ 완료 | EMA + NRRRC_emergency = 실패 판단 |
 | `stat[12]` | avg_inactive_duration | ✅ 완료 | `avgDurationSec` |
 | `stat[13]` | hour_of_day | ✅ 완료 | `tm_hour` |
 | `stat[14]` | day_of_week | ✅ 완료 | `tm_wday` |
 
-> **완료**: 12/15 (80%) | **부분**: 2/15 | **미완료**: 3/15 (20%)
+> **완료**: 13/15 (87%) | **조건부(NGAP 규격 한계)**: 2/15 | **미완료**: 1/15
 
 ---
 
@@ -125,9 +132,9 @@
 |---|---|---|---|
 | **포인트①** | `MsgE1apMake.cpp` → `VEIL_fillE1_Inactivity_Timer()` | E1AP BearerContextSetup/Modify 시 AI 추천 타이머 값 주입 | ✅ **완료** — `VccbAiClient_RecommendInactivityTimer()` 연결 |
 | **포인트②** | `FeatRrcInactive.cpp` → `FnVCCB_IsAbleToProceedRRCInactive()` | InactivityNotification 수신 시 즉시 천이 or 타이머 연장 판단 | ✅ **완료** — AI 추론 호출 + BearerContextModification 전송 |
-| **포인트③** | `StateSaRrcInact.cpp` → `FnVCCB_Inact_ProcRRCResumeRequest1()` | RRCResumeRequest 수신 시 INACTIVE 지속 시간·원인 이력 기록 | ✅ **완료** (기존 구현) — `VccbAiClient_OnResumeRequest()` 연결됨 |
-| **포인트④** | `FeatRrcInactive.cpp` → `FnVCCB_SetRRCInactiveAction_after_RRCResumeRequest()` | RNA Update 수신 시 AI RNA 크기 권고값 로그 출력 | ❌ **미구현** |
-| **포인트⑤** | `StateHandleSa.cpp` 등 (XnAP HO 핸들러) | XnAP HO 수신 시 소스 셀 체류 시간을 aiCtx 이력에 seed | ❌ **미구현** |
+| **포인트③** | `StateSaRrcInact.cpp` → `FnVCCB_Inact_ProcRRCResumeRequest1()` | RRCResumeRequest 수신 시 INACTIVE 지속 시간·원인 이력 기록 | ✅ **완료** — `VccbAiClient_OnResumeRequest()` 연결 |
+| **포인트④** | `FeatRrcInactive.cpp` → `FnVCCB_SetRRCInactiveAction_after_RRCResumeRequest()` | RNA Update 수신 시 AI RNA 크기 권고값 로그 출력 | ✅ **완료** — `VccbAiClient_OnRnaUpdate()` 연결 + resume_prob 기반 RNA 권고 로그 |
+| **포인트⑤** | `StateSaHo.cpp` → `VCCB_ProcMsgXnap_HandoverRequest()` | XnAP HO 수신 시 소스 셀 체류 시간을 aiCtx 이력에 seed | ✅ **완료** — `VccbAiClient_SeedFromXnapHistory()` 연결 |
 
 ---
 
@@ -143,3 +150,22 @@
 | `VCCB_AI_MAX_EXTEND_COUNT` | `3` | 최대 타이머 연장 횟수 |
 | `VCCB_AI_FALLBACK_COUNT` | `10` | Fallback 전환 연속 실패 횟수 |
 | `VCCB_AI_INFER_TIMEOUT_US` | `1000` | 추론 타임아웃 (μs) |
+| `VCCB_AI_24H_WINDOW_SEC` | `86400` | 24h 슬라이딩 윈도우 크기 (초) |
+
+---
+
+## 부록 — 전역 통계 구조체 (`VccbAiGlobalStats_type`)
+
+`VccbAiClient_GetStats()` 또는 `VccbAiClient_PrintStats()` 로 조회 가능.
+
+| 필드 | 의미 |
+|---|---|
+| `totalRequests` | 총 추론 요청 수 (포인트①②④ 합산) |
+| `successCount` | 추론 성공 수 |
+| `failureCount` | 추론 실패 (NaN, buildInput 오류) 수 |
+| `timeoutCount` | 1ms 초과 타임아웃 수 |
+| `fallbackCount` | Fallback 응답 총 수 |
+| `triggerPt1Count` ~ `triggerPt5Count` | 포인트별 호출 횟수 |
+| `totalInferUs` | 성공한 추론의 총 소요 시간 (us) |
+| `consecutiveFailCount` | 현재 연속 실패 횟수 |
+| `isFallbackMode` | 현재 Fallback 모드 여부 |
