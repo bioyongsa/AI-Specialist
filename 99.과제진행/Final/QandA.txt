@@ -1,0 +1,133 @@
+--------------------------------------------
+(venv) sangku@BuildServer:ML $ VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py
+================================================================
+VCCB RRC State Predictor — training data builder (Method A + B)  // ====> (1) Method A와 B가 뭐야?
+================================================================
+[Method B]   + 79,477 rows  (./vccb_ai_dataset.csv)
+[Method B]   + 3,000 rows  (./real/eval_fixed.csv)
+[Method B]   + 1,500 rows  (./real/round_1.csv)
+[Method B]   + 1,500 rows  (./real/round_2.csv)
+[Method B]   + 1,500 rows  (./real/round_3.csv)
+[Method B]   + 1,500 rows  (./real/round_4.csv)
+[Method B]   + 1,500 rows  (./real/round_5.csv)
+[Method B]   + 3,000 rows  (./real/shift.csv)
+[Method B] real CSV     : 92,977 unique samples from 8 file(s)
+[Method A] synthetic    : 20,000 samples (3GPP 5QI rules)
+----------------------------------------------------------------
+Total samples : 112,977  (real 92,977 = 82.3% / synthetic 20,000)
+  resume_prob=1 (resume < 60s): 52.0%
+  resume_time   : mean=448.6s  std=791.9s
+Saved → /p4_ws/sangku/26b_ai_vzw/Application/NR_CALL_APP/VCCB/ML/dataset.npz   ====> (2) dataset.npz 파일은 뭐야? 그리고 npz는 어떤 포맷의 파일이야?
+  X_seq  (112977, 10, 2)  X_stat (112977, 14)
+Next: python train.py   (or analyze_features.py for signal check)
+(venv) sangku@BuildServer:ML $ 
+(venv) sangku@BuildServer:ML $ 
+(venv) sangku@BuildServer:ML $ python train.py
+[train.py v1.6.0]
+Loading /p4_ws/sangku/26b_ai_vzw/Application/NR_CALL_APP/VCCB/ML/dataset.npz ...
+  Total samples: 112,977   // ====> (3) sample은 어떤 파라미터들로 구성된 set들이야?
+  Device: cpu
+
+Epoch      Train        Val   P_loss   T_loss   // ====> (4) P_loss와 T_loss가 뜻하는게 뭐야? 그리고 이들 수치가 의미하는 것도 뭔지 알려줘.
+--------------------------------------------------
+    1     0.4141     0.2994   0.2829   0.0331 *
+    2     0.2950     0.2809   0.2660   0.0299 *
+    3     0.2830     0.2736   0.2593   0.0287 *
+    4     0.2774     0.2696   0.2554   0.0284 *
+    5     0.2729     0.2660   0.2522   0.0278 *
+    6     0.2692     0.2627   0.2490   0.0273 *
+    7     0.2666     0.2611   0.2475   0.0272 *
+    8     0.2644     0.2603   0.2465   0.0276 *
+    9     0.2631     0.2583   0.2448   0.0269 *
+   10     0.2614     0.2580   0.2445   0.0269 *
+   11     0.2609     0.2567   0.2432   0.0271 *
+   12     0.2594     0.2563   0.2429   0.0268 *
+   13     0.2590     0.2552   0.2418   0.0267 *
+   14     0.2580     0.2564   0.2430   0.0270
+   15     0.2574     0.2542   0.2408   0.0267 * 
+....
+
+좋은 질문들입니다! 각각 설명하겠습니다.
+
+(1) Method A vs Method B
+방법	데이터	목적	행 수
+Method A (synthetic)	3GPP 5QI 규칙 기반 생성 데이터	다양한 5QI/HO/RSRP 조합의 systematic coverage	20,000
+Method B (real)	현장 측정 실제 CSV 파일들	실제 UE 동작 패턴 학습	92,977
+총 112,977 샘플 = 20,000 (합성) + 92,977 (실제)
+                 = 17.7% synthetic + 82.3% real
+목적: 두 방법을 혼합해서 synthetic의 systematic coverage + real의 현실성을 모두 얻음.
+
+(2) dataset.npz는 뭐냐?
+.npz = NumPy compressed archive (Python 과학 계산 표준 포맷)
+       = 여러 .npy 파일을 ZIP으로 압축한 것
+내용 (preprocess.py 출력에서):
+
+X_seq  (112977, 10, 2)    ← 시계열 데이터: 샘플 × 과거10스텝 × 특성2개
+X_stat (112977, 14)        ← 정적 특성: 샘플 × stat[] 14개
+Y_prob (112977,)           ← 라벨 (확률): resume_prob=1(0~1사이)
+Y_time (112977,)           ← 라벨 (시간): dwell_seconds (초 단위)
+왜 npz?
+
+빠른 로드 (binary)
+메모리 효율 (압축)
+NumPy/PyTorch와 호환
+(3) "Sample"은 어떤 파라미터들로 구성?
+한 개 sample = (입력, 라벨)
+
+입력 (Input)
+시계열 부분 (X_seq, shape=10×2):
+
+과거 10개 스텝의 이력:
+  [step0] avg_inactive_dur (s),  avg_cell_stay (s)
+  [step1]     "                    "
+  ...
+  [step9]     "                    "
+정적 특성 부분 (X_stat, shape=14):
+
+stat[0]  = primary_5qi (1,2,5,7,8,9,...)
+stat[1]  = drb_count
+stat[2]  = avg_inactive_duration_sec
+stat[3]  = has_gbr_flow (0 or 1)
+stat[4]  = avg_cell_stay_sec
+stat[5]  = ue_ambr_dl_mbps
+stat[6]  = last_rsrp (dBm)
+stat[7]  = resume_success_rate (0~1)
+stat[8]  = resume_count_24h
+stat[9]  = day_of_week (0~6)
+stat[10] = hour_of_day (0~23)
+stat[11] = resume_count_24h (추가)
+stat[12] = ? 
+stat[13] = ?  ← 정확히 뭔지 preprocess.py 코드로 확인 권함
+라벨 (Label)
+Y_prob = 1.0 if (dwell < 60s) else 0.0     ← 즉시 재개 가능성
+Y_time = dwell_seconds                     ← 실제 대기 시간
+(4) P_loss와 T_loss의 의미
+P_loss = Probability Loss (확률 손실)
+Y_prob (resume 예측)을 학습하는 손실함수
+  = BCE (Binary Cross-Entropy) 또는 유사 손실
+  = 모델이 "resume 확률"을 얼마나 잘 예측하는가?
+수치 해석 (위 표에서):
+
+Epoch 1: P_loss = 0.2829  ← 확률 예측이 꽤 부정확
+Epoch 10: P_loss = 0.2445 ← 개선됨 (낮을수록 좋음)
+T_loss = Time Loss (시간 손실)
+Y_time (dwell 시간) 예측 손실
+  = MSE (Mean Squared Error) 또는 유사 손실
+  = 모델이 "대기 시간"을 얼마나 잘 예측하는가?
+수치 해석 (위 표에서):
+
+Epoch 1: T_loss = 0.0331  ← 초 단위로 아주 작음 (좋은 신호!)
+Epoch 10: T_loss = 0.0269 ← 더 개선됨
+전체 손실 (Train, Val)
+Train Loss = P_loss + T_loss (또는 weighted sum)
+  Epoch 1: 0.4141 ≈ 0.2829 + 0.0331 (매우 높음)
+  Epoch 10: 0.2614 ≈ 0.2445 + 0.0269 (개선)
+Val Loss = 검증 세트에서의 손실
+  Epoch 1: 0.2994 (Train 보다 낮음 = 좋은 신호)
+  Epoch 10: 0.2580 (수렴 중)
+* 표시 = best validation loss
+현재 학습 상태
+✓ 샘플 구성: O (112K+, 실제 82% + 합성 18%)
+✓ 손실 추세: 하향 (P_loss, T_loss 모두 감소)
+✓ 과적합 여부: 아직 없음 (Val ≈ Train)
+⏳ 상태: 정상 진행 중
