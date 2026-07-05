@@ -1,0 +1,25 @@
+
+1. C++ 소스/헤더 (7개) — 코드 리뷰 11건 수정
+파일	내역
+Base/VccbItscpDefine/include/VccbAiTypes.h	resumeCause 인코딩 상수(VCCB_AI_CAUSE_*), pendingExtendTimerSec 필드, h[] 주석 정정
+VCCB/VCCB_MAIN/hdr/VccbAiClient.h	FnVCCBAiClient_MapResumeCause/OnDataActivityResumed 선언 추가
+VCCB/VCCB_MAIN/src/VccbAiClient.cpp	가장 큰 변경 — resumeCause 매핑, 연장 성공 리셋, 0초 이력 차단, localtime_r, pendingExtendTimerSec, 통계 이중계상 제거 등
+VCCB/VCCB_STATE/INTERFACE/src/StateE1ap.cpp	OnDataActivityResumed() 훅 추가
+VCCB/VCCB_MAIN/hdr/VccbAiEngine.h	C++-only 헤더 명시 주석
+ITSCP_VCCB/src/getCmd.cpp	"1282 params" → "1266" 정정
+VCCB/Test/ut/FlowTC/JSON/src/test_SaRrcInactiveAI.cpp	Point3 테스트 수정, 신규 테스트 추가, sweep causeSet 변경
+
+
+2. 문서 (2개)
+VCCB/VCCB_AI_Integration_DetailedDesign.md — §0-3/§1-2/§1-3/§2-4/§3-6/§7-3/§D 등 정정
+VCCB/VCCB_AI_Implementation_Status.md — §7(코드 리뷰 수정 로그), §8(ML lockstep/시각화), §8-4-보충(termplot) 추가
+
+
+3. ML 파이썬 (신규 3개 + 수정 3개)
+파일	구분	내역
+VCCB/ML/termplot.py	신규	터미널 ASCII 막대그래프/히스토그램/스파크라인 유틸(외부 의존성 없음)
+VCCB/ML/analyze_synth_literature.py	신규	문헌 근거 4계수(rsrp/hist/svc/mob_factor) 재현 여부 검증 스크립트
+VCCB/ML/visualize_ut_results.py	신규	gtest 결과 파싱·시각화
+VCCB/ML/synth_data_gen.py	수정	rna_Update skip, lockstep 복원(4계수 이벤트별 적용), --profile field/--outlier-frac 옵션
+VCCB/ML/preprocess.py	수정	CAUSE 인코딩 주석, outlier 필터(filter_outliers), termplot 연결
+VCCB/ML/train.py	수정	v1.6.0→1.7.0, 학습 리포트(loss curve/pred vs actual/분리도/MAE), fine-tune before/after, termplot 연결
