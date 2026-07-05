@@ -43,3 +43,25 @@ sangku@rhel8.10:26b_ai_vzw:VCCB $ p4 opened
 //INTEG/RAN/SVR26B/Columbus/Application/NR_CALL_APP/VCCB/report_assets/make_figs.py#1 - add change 10662342 (unicode)
 sangku@rhel8.10:26b_ai_vzw:VCCB $ 
 sangku@rhel8.10:26b_ai_vzw:VCCB $ 
+
+
+
+
+
+C++ 소스/헤더 (11개)
+파일	경로	수정 사항
+1	Base/VccbItscpDefine/include/VccbAiTypes.h	resumeCause 인코딩 상수, pendingExtendTimerSec 필드, h[] 주석
+2	VCCB/VCCB_MAIN/hdr/VccbAiClient.h	함수 선언 3개(MapResumeCause, OnDataActivityResumed, OnResumeRequest 주석)
+3	VCCB/VCCB_MAIN/src/VccbAiClient.cpp	가장 큰 변경 — noteSkipFallback, noteInferFailure, AiInferResult, runInferWithTimeout, MapResumeCause, maybeRestorePersisted, buildAiInput(RSRP/localtime_r), Point1/2/3/4/5 전체, OnDataActivityResumed 등
+4	VCCB/VCCB_STATE/INTERFACE/src/StateE1ap.cpp	include VccbAiClient.h + OnDataActivityResumed() 호출
+5	ITSCP_VCCB/src/getCmd.cpp	"1282 params" → "1266"
+6	VCCB/VCCB_MAIN/hdr/VccbAiEngine.h	C++-only 헤더 명시 주석
+7	VCCB/Test/ut/FlowTC/JSON/src/test_SaRrcInactiveAI.cpp	신규 테스트 추가, Point3 테스트 수정, sweep causeSet 변경
+8	VCCB/ML/train.py	docstring Linear(14,16) 정정
+9	VCCB/ML/preprocess.py	CAUSE_* 인코딩 주석 정정
+10	VCCB/ML/synth_data_gen.py	rna_Update 행 제외 로직, 주석 보강
+
+문서 (2개)
+파일	수정 사항
+VCCB/VCCB_AI_Implementation_Status.md	§7 세션 로그 추가 (2026-07-05 작업 기록)
+VCCB/VCCB_AI_Integration_DetailedDesign.md	§0-3/§1-2/§1-3/§2-4/§3-6/§7-3/§D 정정 (resumeCause 매핑, pendingExtendTimerSec, OnDataActivityResumed 등)
