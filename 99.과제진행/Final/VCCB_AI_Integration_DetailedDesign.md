@@ -79,7 +79,7 @@ CU-UP의 무활동 통지가 올 때마다 AI가 한 번씩 판단한다 (`VCCB_
 
 1. 이후 라운드에서 `resume_prob < 0.6` → 그 시점에 INACTIVE 천이
 2. **연장 횟수가 상한 도달** (`VCCB_AI_MAX_EXTEND_COUNT = 3`) → AI 판단과 무관하게 **강제 천이**, `extendCount` 리셋 (무한 연장 방지)
-3. UE가 실제로 resume(데이터 발생) → 포인트 ③ 동작, `extendCount` 리셋, 천이하지 않고 연결 유지
+3. **UE 데이터 활동 재개** — 연장의 성공 케이스. UE는 한 번도 suspend되지 않았으므로 RRCResume이 발생하지 않는다. CU-UP의 `InactivityNotification(ACTIVE)` 수신 시 `FnVCCBAiClient_OnDataActivityResumed()`(StateE1ap.cpp DATA_RESTART 분기, 2026-07-05 구현)가 `extendCount`/`pendingExtendTimerSec`를 리셋해 다음 idle 구간의 연장 예산을 복원한다. (INACTIVE 천이 후 실제 resume 시에는 포인트 ③이 동일하게 리셋)
 
 ### 0-4. 전체 흐름 (시퀀스)
 
@@ -195,11 +195,11 @@ VLIB_getFiveQi(ptQi, &qos5qi) 로 uint8_t qos5qi 획득
 #### 개입 설계
 
 - `IS_SUPPORT_RRC_INACTIVE(ptCi)` 분기에서, `FnVCCB_GetRRCInactiveTimerValue()` 호출을 AI 래퍼 호출로 교체한다.
-- AI 래퍼는 내부적으로 다음 우선순위로 타이머 값을 결정한다.
-  1. AI Client가 Active 상태이고 `ptCi->aiCtx.lastInferTimerSec` 이 유효한 값(0 초과)이면 해당 값 사용.
+- AI 래퍼는 내부적으로 다음 우선순위로 타이머 값을 결정한다. (2026-07-05 구현 정합)
+  1. **포인트②가 연 deferral 창구간이 열려 있으면**(`ptCi->aiCtx.pendingExtendTimerSec > 0`) 해당 값 사용 — defer 결정이 계산한 타이머가 그대로 BearerContextModification에 실리며 재추론하지 않는다. 창구간은 proceed/cap/INACTIVE 진입/resume/데이터 재개 시 닫힌다.
   2. AI 추론을 새로 수행할 수 있으면 추론 결과 사용.
   3. 위 두 경우 모두 아니면 기존 `FnVCCB_GetRRCInactiveTimerValue()` 반환값 사용 (Fallback).
-- 최종 타이머 값은 반드시 3GPP TS 38.413 허용 범위(1초 ~ 3600초) 내로 클램핑해야 한다.
+- **AI가 산출한 값**(KEEP/EARLY_RELEASE)은 반드시 3GPP TS 38.413 허용 범위(1초 ~ 3600초) 내로 클램핑한다. 반면 **Fallback/skip/mid-range(DEFAULT) 경로는 정적 설정값을 무가공 반환**한다 — AI가 개입하지 않기로 한 경우 운영 설정을 변조하지 않는다 (2026-07-05 수정).
 - `IS_REDCAP_UE(ptCi)` 인 경우 초기 구현에서는 AI 적용 없이 기존 로직 유지.
 
 #### 이 함수가 호출되는 맥락
@@ -247,9 +247,9 @@ VLIB_getFiveQi(ptQi, &qos5qi) 로 uint8_t qos5qi 획득
 - `ptCi->ueInfo.RrcInactiveInfo.resumeCause` 에서 Resume 원인값을 읽어 이력에 함께 기록한다.
 - 이 삽입 코드는 `ptCi->stateCmd == RRCIdle_cmd` 분기(E1/NG reset 케이스) 에서는 실행하지 않는다.
 
-#### Resume Cause 매핑
+#### Resume Cause 매핑 (2026-07-05 매핑 함수 구현)
 
-`ptCi->ueInfo.RrcInactiveInfo.resumeCause` 의 타입은 NRRRC enum이다. AI 이력 구조체·`seq[][1]` 입력에는 uint8_t로 저장하며, `preprocess.py` / `synth_data_gen.py` 와 동일한 정수 인코딩을 쓴다 (`0~5`).
+`ptCi->ueInfo.RrcInactiveInfo.resumeCause` 의 타입은 NRRRC enum이며 **3GPP 38.331 ASN.1 순서**(emergency=0, highPriorityAccess=1, mt_Access=2, mo_Signalling=3, mo_Data=4, ..., rna_Update=8)라 아래 ML 인코딩과 수치가 다르다. `FnVCCBAiClient_MapResumeCause()`(`VccbAiClient.cpp`, 공개 API)가 원시 enum → 아래 `0~5` 인코딩으로 변환하며, `OnResumeRequest` 내부에서 history push·data-collect CSV emit·성공률 판정 전에 반드시 적용된다. 인코딩 상수는 `VccbAiTypes.h`의 `VCCB_AI_CAUSE_*`로 공유된다 (`preprocess.py` CAUSE_*와 lockstep).
 
 | 코드 | 의미 | 비고 |
 |---|---|---|
@@ -402,7 +402,7 @@ AI Client가 Fallback 상태이거나 추론 실패 시, 기존 `FnVCCB_GetRRCIn
 > **Feature 재활용(설계 갱신)**: 상시 0으로 죽어 있던 슬롯 2개를 **의미 있는 signaling-plane feature로 교체**했다. `STATIC_INPUT`은 **14로 불변**(MLP 16×14, 파라미터 1,266, `Parameter_count_is_1266`/`Dimensions_match_design` UT 무변경)이며, 채우는 값만 0→실값으로 바뀐다.
 > - `stat[4]`: `cn_expected_idle_period`(항상 0) → **`handover_count_24h`**(이동성 proxy). VCCB(CU-CP)는 실시간 traffic/throughput을 볼 수 없으나 핸드오버는 자신이 처리하는 시그널링이므로 관측 가능하다. `resume_count_24h`(stat[10])와 동일한 24h 링 방식(§2-5).
 > - `stat[7]`: `neighbor_cell_count`(C++ 추론은 `numNeighborCell`을 넣었으나 학습 파이프라인은 상수 0 → 모델이 무시하도록 학습된 train/infer skew 상태였음) → **`secondary_5qi`**(혼합 서비스군). skew도 함께 제거된다.
-> - `stat[5]`(`cn_stationary`)는 이동성 신호로 예약돼 있으나 이번 범위에서는 미배선(0 유지).
+> - `stat[5]`(`cn_stationary`)는 이동성 신호로 설계됐으나 현재 `0.0f` 고정이다. **2026-07-06 초반에는 "AMF가 NGAP `ExpectedUEBehaviour`를 제공하지 않아 구조적으로 구현 불가"로 기록했으나, 같은 날 코드 대조 결과 근거 부족으로 판명**됐다 — NGAP 코덱(`Middleware/NR_CALL_LIB/IF_NGAP`)은 `ExpectedUEBehaviour`(`expectedUEMobility` 포함) unpack을 이미 구현하는데, VCCB `VNIL_StoreNGAP_CoreNetworkAssistanceInformation()`(`VCCB_MSG/NGAP/src/MsgNgapStore.cpp:4690`)이 그 값을 아예 읽지 않고 버리는 것이 실제 원인이다(저장 필드도 `VccbUeRrcInactiveInfo_s`에 없음). 다만 라벨 공식이 이 값에 의존하지 않고 다른 STRONG feature·`stat[4]`와 신호가 겹쳐 한계효용이 낮을 것으로 판단, **지금은 전체 배선을 보류하고 0 유지**하되 "영구 미배선/재검토 대상 아님"이 아니라 **"낮은 우선순위 보류, 재평가 가능"**으로 재분류한다(`VCCB_AI_Implementation_Status.md` §3-3/§9-2 참조).
 > - `hour_of_day`/`day_of_week`(stat[12]/[13])는 문헌 근거가 약하나, 차원 축소(재학습 파급)를 피하기 위해 **존치**한다(향후 별도 사이클에서 재검토).
 
 | idx | Feature 이름 | 의미 | 접근 방법 힌트 |
@@ -412,8 +412,8 @@ AI Client가 Fallback 상태이거나 추론 실패 시, 기존 `FnVCCB_GetRRCIn
 | 2 | `ue_ambr_dl_mbps` | UE DL AMBR (Mbps) | `VccbStruct.h` 에서 `ambr`, `ueAmbr`, `ambrDl` 검색 |
 | 3 | `has_gbr_flow` | GBR Flow 존재 여부 | `ptCi->qosFlow[]` 의 `gbrQosInfo` 또는 유사 필드 |
 | 4 | `handover_count_24h` | 24h 슬라이딩 윈도우 내 성공한 SA 핸드오버 수 (이동성 proxy). 근거: US 11,109,442 (AMF/이동성 상태 기반 inactivity timer 조정) | `ptCi->aiCtx.handoverCount24h`. `FnVCCBAiClient_OnHandover()`가 기존 `HO_Succ` peg 지점(§1-5)에서 갱신, persist 저장(§2-7) |
-| 5 | `cn_stationary` | (예약, 현재 0.0) UE Stationary 여부 | NGAP CoreNetworkAssistanceInformation "Expected UE Behaviour" (현 시점 미배선) |
-| 6 | `last_rsrp` | 최근 RSRP 측정값 | `ptCi->servCellSsbRsrp` (255→0) |
+| 5 | `cn_stationary` | (0.0 고정, 낮은 우선순위로 보류) UE Stationary 여부 | NGAP CoreNetworkAssistanceInformation의 `ExpectedUEBehaviour`(`expectedUEMobility`) — 코덱은 unpack 지원하나 VCCB가 미수신·미배선(§2-4 상단 노트). 중요도 평가상 한계효용 낮아 당장 배선 안 함, 재평가 가능 |
+| 6 | `last_rsrp` | 최근 RSRP 측정값 | `ptCi->servCellSsbRsrp` (255=invalid → 학습 분포 평균 75로 mean-fill, 2026-07-05. 0은 실측 "극약전계"와 구분 불가라 미사용) |
 | 7 | `secondary_5qi` | primary_5qi와 다른 첫 active DRB의 Non-Dynamic 5QI (혼합 서비스군 세션, 예: VoNR 5QI=1 + eMBB 데이터 5QI=9 → secondary=9). 0=단일 서비스군. 근거: Nokia 서비스군별 차등 timer | `ptCi->drb[]`→`drbQosIdxInCall`→`ptCi->qosFlow[]` 순회 (buildAiInput, primary_5qi 추출 미러) |
 | 8 | `rna_cell_count` | RNA 내 셀 수 | `ptCi->ueInfo.RrcInactiveInfo.numInactTAI` (확인됨) |
 | 9 | `avg_inactive_duration_sec` | 평균 INACTIVE 지속 시간 (EMA, `avgDurationSec`) | `ptCi->aiCtx.avgDurationSec` |
@@ -722,7 +722,7 @@ namespace VccbAiWeights {
 
 ### 3-6. 중간 연산 버퍼 관리
 
-GRU 은닉 상태(`h_t`) 는 `ptCi->aiCtx.h[VCCB_AI_HIDDEN_SIZE]` 에 보관한다. LSTM과 달리 cell state가 없으므로 추가 배열이 불필요하다. Call Task별로 독립된 `ptCi` 를 사용하므로 동기화는 불필요하다.
+현재 엔진은 **stateless** 다 — `FnVCCBAiEngine_Infer()`가 매 추론마다 스택 로컬 `h[16]`를 0으로 초기화하고 `seq[]` 전체 윈도우를 재주행하므로, `ptCi->aiCtx.h[VCCB_AI_HIDDEN_SIZE]` 는 실제로 읽거나 쓰지 않는 **예약 필드**다(레이아웃 유지 목적, 2026-07-05 주석 명시). Call Task별로 독립된 스택 버퍼를 사용하므로 동기화는 불필요하다.
 
 ---
 
@@ -924,7 +924,7 @@ latency_us = (t_end.tv_sec  - t_start.tv_sec)  * 1000000LL
 | 특성 | 내용 |
 |---|---|
 | 페르소나 | `iot_sensor` / `bursty_phone` / `fwa_fixed` / `commuter` — 각자 IAT(Weibull) 분포·QoS(5QI/DRB/AMBR/GBR)·RSRP·RNA 특성을 가짐 |
-| resumeCause 분포 | 페르소나와 무관하게 **데이터셋 전역 목표 비율**(`GLOBAL_CAUSE_MIX`)에서 이벤트마다 샘플 → emergency 6% / mo_Signalling 32% / mt_Access 29% / rna_Update 19% / others 14%. 인코딩은 `preprocess.py` 와 동일(0=emergency, 2=mo_Signalling, 3=mt_Access, 4=rna_Update, 5=others; 그 외는 others) |
+| resumeCause 분포 | 페르소나와 무관하게 **데이터셋 전역 목표 비율**(`GLOBAL_CAUSE_MIX`)에서 이벤트마다 샘플 → emergency 6% / mo_Signalling 32% / mt_Access 29% / rna_Update 19% / others 14%. 인코딩은 `preprocess.py` 와 동일(0=emergency, 2=mo_Signalling, 3=mt_Access, 4=rna_Update, 5=others; 그 외는 others). **⚠️ 2026-07-05 serve-path mirror**: rna_Update 이벤트는 타임라인만 진행하고 **행/이력을 배출하지 않는다** — 서빙 Point③ 호출부가 RNA-update resume을 skip하므로 production 수집 데이터에 rna 행/seq가 존재할 수 없기 때문(분포 정합) |
 | 시퀀스 생성 | UE별 연속 세션을 renewal process로 시뮬레이션 → `label_durationSec` = 다음 INACTIVE 지속시간, `seq[]` = 직전 이력(oldest-first, zero-pad) |
 | 집계 일치 | `avgDurationSec`/`resumeSuccessRate` EMA(α=0.1), 24h resume count를 **`VccbAiClient.cpp` 와 동일한 점화식**으로 산출 |
 | 출력 스키마 | `aiDataCollectEmit`(§D-2)와 **완전히 동일한 CSV 헤더** → 기존 학습 파이프라인 그대로 사용 |
@@ -1394,7 +1394,7 @@ AI 오추론이 실호 저하로 직결되므로, 이미 구현된 안전장치�
 1. **SHM 슬롯**: `VccbStatInfo_type`(SHM 세그먼트 `VCCB_STAT`) 끝에 POD 스냅샷 `VccbAiStatShm_type aiStat` 추가(`VccbStruct.h`). 기존 필드 오프셋을 보존하기 위해 **구조체 맨 끝에 append**. `std::atomic` 미사용(C/C++ ABI 안전) — writer는 relaxed store, reader는 양성 race 허용(제어가 아닌 대시보드).
 2. **바인딩**: `MainInit.cpp`에서 `VCCB_STAT` SHM 할당 직후 `FnVCCBAiClient_BindStatShm(&VCCB_STAT->aiStat)` 1회 호출 → AI 클라이언트가 슬롯 포인터 보관.
 3. **퍼블리시**: VCCB가 매 AI 진입점(Point 1/2/3/4)에서 `publishStatsToShm()`로 프로세스-로컬 카운터 + 영속 통계 스냅샷을 SHM에 미러. 바인딩 전(gtest, 부팅 초기 `FnVCCBAiClient_Reset()`)에는 안전한 no-op.
-4. **조회**: itscp `GetStatAiReport()`(`ITSCP_VCCB/src/getCmd.cpp`)가 `PSTAT->aiStat`를 읽어 가드레일 비율(success/fail/timeout/fallback) + avg latency + `extendCapHit` + 트리거 카운트 + 영속 저장소(restore hit/miss, saves, evictions, noKey)를 출력. 백분율은 정수 스케일링(×100)으로 계산해 itscp의 float printf 의존을 피한다.
+4. **조회**: itscp `GetStatAiReport()`(`ITSCP_VCCB/src/getCmd.cpp`)가 `PSTAT->aiStat`를 읽어 가드레일 비율(success/fail/timeout/fallback) + avg latency + `extendCapHit` + 트리거 카운트 + 영속 저장소(restore hit/miss, saves, evictions, noKey)를 출력. 백분율은 double 연산 후 `%.2f`로 출력한다(itscp `PRINT`가 float printf를 지원함이 실빌드로 확인되어 정수 스케일링 대안은 미사용). **집계 의미(2026-07-05 정합)**: `totalRequests`는 Pt1/2/4 모두 진입 즉시 계상(skip 포함), 시도당 failure **또는** timeout 1회 + fallback 1회만 peg(이중 계상 제거), master-disable 상태의 skip은 fallbackCount에 미계상(DISABLED ≠ FALLBACK).
 
 ```c
 // VccbAiClient.h — 크로스-프로세스 노출 바인딩

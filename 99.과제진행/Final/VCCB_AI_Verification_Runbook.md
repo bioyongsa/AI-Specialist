@@ -12,6 +12,7 @@
 - **Part E** — 이번 세션에서 수정한 4개 항목(A-1/B-1/B-2/B-3) 검증
 - **Part F** — 트러블슈팅 / 산출물 경로 총정리
 - **Part G** — 2026-07-04 실측 데이터 프로덕션 재학습 + 자주 묻는 질문(FAQ)
+- **Part H** — 2026-07-06 전체 파이프라인 원샷 실행 순서 (학습 데이터 생성 → VCCB/itscp_vccb 컴파일 → UT 실행 → drift 검증, 복붙용)
 
 ---
 
@@ -354,11 +355,11 @@ $VCCB/
 ├── ML/
 │   ├── preprocess.py / train.py / export_weights.py / evaluate.py / metrics.py
 │   ├── gen_realish_csv.py            # 실측형 dry-run 데이터 생성기
-│   ├── finetune_rounds.py            # ★ 이번 세션 신규: 회차별 개선 증명 하니스
-│   ├── dataset.npz / model.pt        # production 파이프라인 산출물
-│   ├── real/                         # finetune_rounds.py가 저장한 회차별 CSV
-│   ├── model_round*_*.pt             # finetune_rounds.py 체크포인트
-│   └── finetune_rounds_*.{csv,txt,png,json}
+│   ├── finetune_rounds.py            # 회차별 개선 증명 하니스 (Part D-2)
+│   ├── dataset.npz / model.pt        # production 파이프라인 산출물 (매 실행마다 덮어씌임)
+│   ├── real/                         # 실측/dry-run CSV 보관 디렉토리
+│   ├── model_round*_*_<tag>.pt       # finetune_rounds.py 실험별 체크포인트
+│   └── finetune_rounds_*_<tag>.{csv,txt,png,json}   # finetune_rounds.py 실험별 산출물
 ├── VCCB_MAIN/
 │   ├── hdr/VccbAiClient.h / VccbAiEngine.h / VccbAiWeights.h / VccbAiPersistStore.h
 │   └── src/VccbAiClient.cpp / VccbAiEngine.cpp / VccbAiPersistStore.cpp
@@ -367,6 +368,63 @@ $VCCB/
 ├── VCCB_FEAT/RRC_INACTIVE/src/FeatRrcInactive.cpp (Point②④)
 └── Test/ut/FlowTC/JSON/src/test_SaRrcInactive.cpp / test_SaRrcInactiveAI.cpp
 ```
+
+### ML/ 디렉토리 산출물 상세
+
+`$VCCB/ML/` 아래에는 두 종류의 파일이 공존한다: **파이프라인 산출물**(H-1~H-4가 매번 덮어씌우는 파일)과 **실험 기록**(finetune_rounds.py가 tag별로 누적하는 파일). 헷갈리지 않도록 각각의 출처와 정리 정책을 정리한다.
+
+#### Group 1 — 파이프라인 핵심 산출물 (H-1/H-4 생성, 매 실행마다 교체됨)
+
+| 파일 | 생성 단계 | 내용 |
+|---|---|---|
+| `vccb_ai_dataset.csv` | H-1 `synth_data_gen.py` | 가상 UE 5,000대 시뮬레이션 원시 데이터 (~6만 행) |
+| `dataset.npz` | H-1/H-3 `preprocess.py` | `X_seq(N,10,2)` / `X_stat(N,14)` / `Y_prob(N,)` / `Y_time(N,)` 4개 배열 압축 학습셋 |
+| `model.pt` | H-1 `train.py` → H-4 fine-tune으로 덮어씌임 | PyTorch 모델 state_dict (GRU+MLP+head, 1,266 파라미터) |
+| `model.pt.phase1` | H-1 `cp -v model.pt model.pt.phase1` | Phase 0(scratch) 완료 직후 모델 백업 — fine-tune 전 기준선 복원 시 사용 |
+| `train_report_full.png` | H-1 `train.py` (Phase 0) | epoch별 val/train loss 수렴 곡선 + MAE 막대 + AUROC/F1 + resume_prob 히스토그램 |
+| `train_metrics_full.json` | H-1 `train.py` (Phase 0) | AUROC / F1 / MAE / ECE / RMSE / bias / verdict 수치 JSON |
+| `train_report_finetune.png` | H-4 `train.py` (fine-tune) | fine-tune epoch 수렴 + **before FT / after FT 나란히 비교** 막대 |
+| `train_metrics_finetune.json` | H-4 `train.py` (fine-tune) | fine-tune 전/후 수치 JSON (before_auroc 등 비교 필드 포함) |
+
+> **정리 정책**: H-1 시작 시 전부 삭제. 아래 단계에서 덮어쓰이기는 하지만, 구버전 파일이 남아있으면 "이번 실행 결과"인지 구분이 불가능하다.
+
+#### Group 2 — evaluate.py 선택 산출물 (H-3 이후 선택적으로 실행)
+
+| 파일 | 내용 |
+|---|---|
+| `eval_pred_vs_true.png` | 예측 resume_time vs 실제 resume_time 산점도 |
+| `eval_baseline_mae.png` | model MAE vs naive(중앙값) vs persistence 막대 비교 |
+| `eval_model_vs_oracle.png` | model MAE vs oracle(완벽한 5QI/HO 분류 기반 상한) 비교 |
+| `eval_report.txt` | 위 수치를 텍스트로 정리한 리포트 |
+
+> **정리 정책**: H-1 시작 시 전부 삭제.
+
+#### Group 3 — finetune_rounds.py 실험 기록 (`--tag <name>` 별로 구분, 삭제 불필요)
+
+`finetune_rounds.py`(Part D-2)를 실행할 때마다 파일명에 `_<tag>` 접미사가 붙어 쌓인다. **파이프라인(H-1~H-4)과 완전히 별개**이므로 H-1 정리 대상이 아니다.
+
+| 파일 패턴 | 예시 (`--tag entest`) | 내용 |
+|---|---|---|
+| `finetune_rounds_mae_<tag>.png` | `finetune_rounds_mae_entest.png` | 회차별 MAE 추이 (full_finetune vs head_only) |
+| `finetune_rounds_classification_<tag>.png` | `finetune_rounds_classification_entest.png` | 회차별 AUROC / F1 추이 |
+| `finetune_rounds_timer_kpi_<tag>.png` | `finetune_rounds_timer_kpi_entest.png` | 회차별 premature-release% / wasted-hold% 추이 |
+| `finetune_rounds_metrics_<tag>.csv` | `finetune_rounds_metrics_entest.csv` | 전체 회차 × 전략 수치 표 |
+| `finetune_rounds_report_<tag>.txt` | `finetune_rounds_report_entest.txt` | round0→마지막 회차 before/after 요약 |
+| `finetune_rounds_config_<tag>.json` | `finetune_rounds_config_entest.json` | 실행 파라미터 기록 (재현용) |
+| `model_round0_baseline_<tag>.pt` | `model_round0_baseline_entest.pt` | Round-0 베이스라인 모델 가중치 |
+| `model_round{N}_{strategy}_<tag>.pt` | `model_round1_full_finetune_entest.pt` | 회차N × 전략(full/head_only) 체크포인트 |
+
+> **정리 정책**: H-1 시작 시 전부 삭제 (`rm -f finetune_rounds_*.png/csv/txt/json/log model_round*_*.pt`). 실험 결과를 나중에 다시 보려면 삭제 전 별도 디렉토리에 옮겨둘 것.
+
+#### Group 4 — real/ 디렉토리 CSV (H-1 전에 전부 삭제, 진짜 실측 CSV만 예외)
+
+| 파일 | 출처 | 내용 |
+|---|---|---|
+| `real/eval_fixed.csv` | `finetune_rounds.py` | 실험용 held-out 평가셋 — **H-1 전에 삭제** |
+| `real/round_1.csv` ~ `round_5.csv` | `finetune_rounds.py` | 회차별 시뮬레이션 배치 — **H-1 전에 삭제** |
+| `real/shift.csv` | H-2 `gen_realish_csv.py` | fine-tune용 신규 데이터 — **H-1 전에 삭제** |
+
+> **주의**: 위 3종은 모두 `finetune_rounds.py`나 `gen_realish_csv.py`가 만든 **시뮬레이션 데이터**이므로 재학습 시 삭제한다. 만약 실제 gNB에서 수집한 필드 로그 CSV를 `real/`에 보관 중이라면, 그 파일들은 삭제하지 말고 `real/round_*.csv`와 구분되는 이름으로 관리할 것.
 
 ---
 
@@ -657,3 +715,203 @@ Epoch      Train        Val   P_loss   T_loss
 ### G-6. 매트릭스 테스트(16케이스)는 재학습에 관여하지 않음
 
 `gen_ai_matrix_tc.py`가 생성한 16개 feature 민감도 케이스(`AI_matrix_*`, §DetailedDesign 6-10)는 **acceptance 학습 루프의 입력이 아니다.** 4개 base case(profile A/B 등, `skip:0`)만이 실제 학습/검증에 쓰인다. 매트릭스는 재학습된 모델이 "5QI/HO/RSRP를 바꾸면 timer가 의도한 방향으로 변하는가"를 사람이 확인하는 **참조/시연 세트**이며, 평소엔 `skip:1`로 비활성 상태를 유지하다가 탐색적 검증이 필요할 때만 수동으로 켠다.
+
+---
+
+## Part H — 전체 파이프라인 원샷 실행 순서 (2026-07-06, 복붙용)
+
+> **목적**: "학습 데이터 생성 → VCCB/itscp_vccb 컴파일 → UT 실행 → drift 검증"까지 전체 사이클을, 지금(UT 43/43 전체 통과 상태)부터 그대로 재연할 수 있도록 정리한다.
+>
+> **⚠️ 2026-07-06 정정**: 최초 버전은 데이터 생성을 gtest `VCCB_AI_DATA_COLLECT` 빌드(Part A-3/B-1) 기준으로 잘못 작성했었다. 실제로 지금까지 써온 절차는 **부록(2026-06-12 기록)의 `synth_data_gen.py` + `gen_realish_csv.py` + fine-tune 사이클**이었다 — 사용자가 실제 실행 로그를 그대로 붙여넣어 확인됨. 아래는 그 실제 절차를 **그대로 따르되**, 같은 부록/§10에서 이미 찾아낸 결함 2가지만 고쳤다:
+> 1. `gen_realish_csv.py`로 `real/shift.csv`를 새로 만든 뒤 **`preprocess.py`를 재실행하지 않고 바로 fine-tune**하면 신규 데이터가 전혀 반영되지 않는다(§10-1/§10-2 실측 사례 — fine-tune 전후 AUROC/MAE가 소수점까지 동일하게 나왔던 그 문제). → 아래 H-3에 재실행 단계를 추가했다.
+> 2. `export_weights.py`를 fine-tune **이전**(H-1 끝)에 한 번 돌리면, 그 사이 누군가 VCCB를 재빌드할 경우 fine-tune 반영 전 가중치가 배포될 위험이 있다. → 아래에서는 fine-tune이 끝난 뒤 **딱 한 번**만 export한다.
+>
+> 그 외 단계 구성·라벨("5. VCCB 재빌드"=실제로는 ITSCP_VCCB 빌드, "6. ut 실행"=VCCB/Test/ut를 `test_SaRrcInactiveAI`로 빌드+실행)은 실제 관행 그대로 유지했다.
+
+### H-0. 환경 변수 (최초 1회, 이후 모든 단계 공통)
+
+```bash
+export VCCB=/p4_ws/sangku/26b_ai_vzw/Application/NR_CALL_APP/VCCB
+export ITSCP=/p4_ws/sangku/26b_ai_vzw/Application/NR_CALL_APP/ITSCP_VCCB
+```
+
+### H-1. 학습 데이터 재생성 (docker 외부) — base 합성 데이터 + 학습
+
+```bash
+# 1.1 기존 ut 결과물 및 이전 파이프라인 산출물 정리
+sudo rm -rf $VCCB/../../../Output/ut_results/     # = /p4_ws/sangku/26b_ai_vzw/Output/ut_results/
+cd $VCCB/ML
+
+# ★ 이전 파이프라인 실행 산출물 전체 정리 (완전히 새로 시작하는 경우)
+rm -f dataset.npz model.pt model.pt.phase1
+rm -f train_report_*.png train_metrics_*.json
+rm -f eval_*.png eval_report.txt
+rm -f finetune_rounds_*.png finetune_rounds_*.csv finetune_rounds_*.txt finetune_rounds_*.json finetune_rounds_*.log
+rm -f model_round*_*.pt
+rm -f real/eval_fixed.csv real/round_*.csv real/shift.csv
+# ※ real/ 에 진짜 gNB 실측 CSV가 있다면 그 파일들은 삭제하지 말 것
+```
+
+```bash
+# 1.2 학습데이터 재생성 (가상 UE 5,000대 시뮬레이션 -> vccb_ai_dataset.csv)
+python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0
+
+source venv/bin/activate
+which python3          # .../VCCB/ML/venv/bin/python3 이어야 정상 (아니면 sudo로 우회하지 말고 venv부터 activate)
+
+# ★ 이전 세션의 shift.csv 삭제 — base 모델이 shift 분포를 미리 학습하지 않도록
+# (이 파일이 없어야 H-3에서 preprocess.py가 진짜로 새 데이터를 추가한다)
+rm -f real/shift.csv
+
+VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py   # 전처리
+python train.py                                                                        # 학습 (Phase 0, scratch)
+cp -v model.pt model.pt.phase1                                                         # base 모델 백업
+```
+
+> `export_weights.py`는 **여기서 실행하지 않는다** — 바로 다음 단계에서 fine-tune할 것이므로, 지금 export해도 fine-tune 뒤에 다시 덮어쓰게 된다(§10-1 항목5 참조). 최종 export는 H-4에서 1회만 한다.
+
+> **`rm -f real/shift.csv` 이유**: 이전 파이프라인 실행에서 남은 `shift.csv`가 있으면 H-1의 `preprocess.py`가 그 데이터를 포함한 채로 base 모델을 학습한다. 그러면 H-2에서 같은 파라미터로 shift.csv를 재생성해도 H-3의 `preprocess.py` 출력이 H-1과 동일해지고, H-4 fine-tune에 전달되는 데이터가 실질적으로 달라지지 않아 개선 효과를 측정할 수 없다. 진짜 필드 로그(`real/` 아래의 다른 CSV)는 삭제하지 않는다.
+
+**확인할 것**: `preprocess.py`의 `resume_prob=1 (resume < 60s): NN.N%`가 40~60% 범위인지. `train.py` 끝의 `[verdict] beats naive=Y beats persistence=Y`.
+
+### H-2. dry-run(실측 모사) 데이터 생성 (docker 외부)
+
+```bash
+mkdir -p real
+python3 gen_realish_csv.py --out real/shift.csv --n 3000 --dur-scale 2.2   # 강한 shift CSV 생성
+ls -lh real/shift.csv
+```
+
+> 이 스크립트는 "진짜 실측 데이터"가 아니라 fine-tune 배관(warm-start/freeze/early-stop/export)이 제대로 동작하는지 증명하기 위한 의도적으로 분포가 다른 더미 데이터다. **진짜 필드 로그가 쌓였다면 이 단계 대신 그 CSV를 같은 스키마로 `real/`에 넣는다.**
+
+### H-3. ★ 반드시 재실행 — 신규 CSV를 `dataset.npz`에 반영 (docker 외부)
+
+```bash
+VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py
+```
+
+> H-1과 완전히 동일한 명령이지만, **`real/`에 H-2에서 만든 `shift.csv`가 이미 있으므로 이번엔 그 내용이 `dataset.npz`에 포함된다.** 이 단계를 건너뛰면 다음 fine-tune이 신규 데이터를 전혀 못 보고 예전 데이터로만 재학습한다 — **과거에 실제로 이 단계를 빼먹은 채 진행한 적이 있었다**(§10-1/§10-2, before/after 지표가 소수점까지 동일했던 사례).
+
+(선택) 여기서 `python3 evaluate.py`로 fine-tune 전 baseline을 리포트로 남겨둘 수 있다(`eval_report.txt`) — 스킵해도 파이프라인엔 무해.
+
+### H-4. fine-tuning 실행 + 가중치 export (docker 외부)
+
+```bash
+VCCB_AI_FINETUNE=1 VCCB_AI_FREEZE_GRU=1 python train.py   # warm-start, GRU/MLP 동결, head만 재학습
+```
+
+**확인할 것**: 학습 끝의 `── Phase-1 quality metrics (val) ──` 블록에서 **val loss, ECE, MAE 중 하나라도 소폭이라도 개선됐는지** 확인. 만약 모든 지표(AUROC/F1/MAE/ECE/val loss)가 소수점 4자리까지 **완전히 동일**하면 H-3을 빼먹었다는 신호. 단, `gen_realish_csv.py`를 동일 파라미터(`--n 3000 --dur-scale 2.2`)로 재생성하면 기존 `shift.csv`와 유사한 분포가 나와 전체 97,965 샘플 중 3%만 교체되므로, ECE나 val loss만 소폭 개선되고 AUROC/F1은 동일한 것은 **정상 동작**(H-3이 올바르게 실행된 것).
+
+```bash
+python3 export_weights.py   # ★ 여기서 딱 한 번만 — model.pt(fine-tune 최종본) -> VccbAiWeights.h
+```
+
+**확인할 것**: `Total parameters : 1,266`, `Inference @feature-mean : resume_prob`가 `1.000`이 아님, `Exported → .../VCCB/VCCB_MAIN/hdr/VccbAiWeights.h` 경로 확인.
+
+> **여기서 p4 sync** (`VccbAiWeights.h`가 갱신됐으므로, 뒤에서 빌드할 워크스페이스에 반영).
+
+### H-5. VCCB 재빌드 (docker 내부) — 실제로는 `ITSCP_VCCB` 빌드
+
+```bash
+cd $ITSCP
+make clean; make -sj7
+```
+
+### H-5b. AI matrix 바운드 재보정 (재학습 후 AI_matrix_* 실패 시)
+
+> **적용 조건**: H-1을 새로 실행한 뒤(= 재학습 수행 후) H-6 UT에서 `AI_matrix_*` 케이스가 실패했을 때.  
+> 실패 메시지가 실제 timer 값을 직접 알려주므로 `skip: 1`로 숨길 필요 없이 아래 2-cycle로 보정한다.
+
+**증상 예**:
+
+```
+aiCtx.lastInferTimerSec is 35, checker wants <= 3
+```
+
+**처리 절차** (docker **밖**, 호스트에서):
+
+```bash
+cd $VCCB/Test/ut/tool
+```
+
+1. **실패 케이스 분류**: 각 실패 케이스의 `"is XX"` 값을 확인
+   - `XX > 1` (timer가 MIN보다 크다) → `resume_prob >= 0.6` (KEEP 경로) → `OBSERVED_KEEP` 에 추가
+   - `XX == 1` 인데 범위 오류 → `OBSERVED_RELEASE_PROB` 값 조정
+
+2. **`gen_ai_matrix_tc.py` 수정**: `OBSERVED_KEEP` / `OBSERVED_RELEASE_PROB` 업데이트
+
+   ```python
+   # KEEP 경로로 바뀐 케이스: OBSERVED_RELEASE_PROB에서 제거하고 OBSERVED_KEEP에 추가
+   OBSERVED_KEEP = {
+       ...
+       "AI_matrix_X_케이스명": (lo, hi),  # resume_prob=0.XXX -> timer=YY
+   }
+   ```
+
+   `lo` / `hi` 기준: 실제 timer 중심으로 ±15% 여유 (예: timer=35 → `(30, 40)`)
+
+3. **JSON 재생성**:
+
+   ```bash
+   python gen_ai_matrix_tc.py
+   # 출력 확인: merged 14 matrix cases after 4 base cases
+   ```
+
+4. **H-6 재실행** → 43/43 PASSED 확인
+
+> `skip: 1`로 감추지 않는 이유: UT 실패 메시지의 `"is XX"`가 새 모델의 실제 timer 값이다. 감추면 이 값을 별도 수단으로 얻어야 한다. fail → fix → pass 2-cycle이 가장 빠르다.
+
+---
+
+### H-6. ut 실행 (docker 내부) — VCCB/Test/ut를 AI 옵션으로 빌드 + 실행
+
+```bash
+cd $VCCB/Test/ut
+make clean; make -sj7 RT_OPTION=test_SaRrcInactiveAI OUTPUT=jenkins
+```
+
+```bash
+# 전체 스위트 직접 실행하고 싶을 때 (6 suite 43 tests 전부 PASSED 확인용, §9-3 기준)
+./OBJ/ACPF/i686/UT_VCCB.i686
+```
+
+> `install-bt ... Permission denied`(결과 xml 관련) 로그는 판정과 무관 — 필요하면 `sudo chown -R sangku $VCCB/Output/ut_results` 1회로 정리.
+
+### H-7. drift 검증 — 배포 후 운영 단계 (docker 외부)
+
+> **⚠️ 전제 조건**: 이 단계는 **VCCB 프로세스가 실제 동작 중인 상태**(gNB 운용 환경)에서만 의미 있다. BuildServer에서 UT만 실행한 후 이 명령을 실행하면 `itscp_vccb get stat ai` 명령이 실패(exit 255)하며 `[drift] AI snapshot invalid/unpublished (valid=0)` 오류가 출력된다 — 이는 예상된 실패이며, 파이프라인 결함이 아니다.
+
+```bash
+# 로그 디렉토리 사전 생성 (최초 1회)
+sudo mkdir -p /var/log/vccb_ai
+sudo chown sangku:sangku /var/log/vccb_ai
+```
+
+```bash
+# 6.1 배포 후 정상 출력 기준 캡처 (최초 1회, VCCB 실행 중일 때)
+python drift_monitor.py --capture-baseline --state /var/log/vccb_ai/drift_state.json
+```
+
+```bash
+# 6.2 배포 후 주기마다 실행 (cron 매일 등) -- 실제 drift 모니터링
+python3 drift_monitor.py \
+    --train-baseline $VCCB/ML/drift_baseline.json \
+    --state /var/log/vccb_ai/drift_state.json \
+    >> /var/log/vccb_ai/drift.log 2>&1
+```
+
+### H-8. 전체 사이클 한 줄 요약
+
+```
+[docker 밖] rm Output/ut_results/ + rm dataset.npz/model.pt*/train_report*.png/eval*.png★ -> synth_data_gen.py -> rm real/shift.csv★ -> preprocess.py -> train.py(Phase 0) -> model.pt.phase1 백업 (H-1)
+      │
+[docker 밖] gen_realish_csv.py(shift.csv) (H-2) -> preprocess.py 재실행★ (H-3)
+      │       -> [선택] evaluate.py(BEFORE) -> VCCB_AI_FINETUNE=1 [FREEZE_GRU=1] train.py(AFTER) -> export_weights.py (H-4)
+      │       ※ p4 sync (VccbAiWeights.h 반영)
+      │
+[docker 안] ITSCP_VCCB make (H-5) -> [docker 밖, 재학습 후 필요 시] gen_ai_matrix_tc.py 재실행 (H-5b)★ -> VCCB/Test/ut make + 실행 (H-6)
+      │
+[운영]      drift_monitor.py --capture-baseline (최초 1회) -> cron 주기 실행 (H-7)
+```
+
+> 각 단계의 옵션·출력 해설은 부록(2026-06-12 기록, 동일 절차의 옵션별 설명 포함)과 Part G(현재 프로덕션 데이터 규모)를 참조.
