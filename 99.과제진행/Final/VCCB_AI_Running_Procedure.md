@@ -68,28 +68,30 @@ H-7  drift 검증       drift_monitor.py  (VCCB 운영 중일 때만 의미)
 
 ### 2-1. H-0 환경변수 & 정리
 
-```
-export VCCB=/p4_ws/.../VCCB
-export ITSCP=/p4_ws/.../ITSCP_VCCB
-sudo rm -rf $VCCB/../../../Output/ut_results/     # 이전 UT 결과 XML 제거
-cd $VCCB/ML
-rm -f dataset.npz model.pt model.pt.phase1        # Group 1
-rm -f train_report_*.png train_metrics_*.json     # Group 1
-rm -f eval_*.png eval_report.txt                  # Group 2
-rm -f finetune_rounds_*.* model_round*_*.pt        # Group 3
-rm -f real/eval_fixed.csv real/round_*.csv real/shift.csv  # Group 4
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> export VCCB=/p4_ws/.../VCCB
+> export ITSCP=/p4_ws/.../ITSCP_VCCB
+> sudo rm -rf $VCCB/../../../Output/ut_results/     # 이전 UT 결과 XML 제거
+> cd $VCCB/ML
+> rm -f dataset.npz model.pt model.pt.phase1        # Group 1
+> rm -f train_report_*.png train_metrics_*.json     # Group 1
+> rm -f eval_*.png eval_report.txt                  # Group 2
+> rm -f finetune_rounds_*.* model_round*_*.pt        # Group 3
+> rm -f real/eval_fixed.csv real/round_*.csv real/shift.csv  # Group 4
+> ```
 
 - 4개 Group을 전부 지우는 이유: preprocess.py가 `real/` 아래 **모든 `*.csv`를 무조건 병합**한다.
   이전 세션 CSV가 남아 있으면 base 모델이 그 분포를 미리 학습해버려 H-3 fine-tune이 no-op이 된다. (메모리 [[project-part-h-pipeline-rules]])
 
 ### 2-2. H-1 ① synth_data_gen.py
 
-**실행 명령어:**
-
-```bash
-python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0
+> ```
 
 | 옵션 | 이 실행에서 준 값 | 의미 (소스: `synth_data_gen.py` argparse) |
 |---|---|---|
@@ -115,14 +117,39 @@ python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0
 | `outlier_frac=0.000` | `--outlier-frac`(기본 0.0). 0보다 크게 주면, 찍히는 행마다 그 확률로 4가지 "실제 로거 버그"를 흉내 낸 값 오염을 주입한다: `label_spike`(라벨이 수천~86400초로 폭주, 40% 확률), `label_zero`(라벨=0초, 25%), `ambr_spike`(AMBR을 1000배로 부풀림, 20%), `avgdur_spike`(누적 평균 dwell을 이상값으로 교체, 15%). | 이건 §2-3의 `[outlier] mode=iqr` 필터가 **실제로 걸러내는지 시험**하기 위한 장치다. base 데이터는 처음부터 깨끗해야 하므로 0.0 — `field` 프로필로 fine-tune 세트를 만들 때만 보통 ~0.02 정도로 켠다. |
 | `seed=0` | `--seed 0`(기본값). Python `random.Random(seed)`에 넣는 난수 시드(값). | 같은 seed + 같은 옵션이면 **항상 똑같은 CSV**가 나온다(재현 가능·결정적). "방금 그 이상한 결과가 우연인지 재현되는 버그인지" 확인할 때, 같은 seed로 다시 돌려서 똑같이 나오면 코드 문제, 다르게 나오면 난수 문제라는 걸 구분할 수 있다. |
 
+#### ⚠️ (누락 주의) venv 활성화 — H-1①과 ② 사이 필수 단계
+
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> source venv/bin/activate
+> which python3
+> ```
+
+| 명령어 | 의미 |
+|---|---|
+| `source venv/bin/activate` | 이 디렉토리(`$VCCB/ML/venv`)에 미리 만들어 둔 **Python 가상환경(virtual environment)**을 켠다. 가상환경 = 시스템 전체에 영향 주지 않고 이 프로젝트 전용 패키지(numpy/pandas/torch 등)만 따로 설치해 둔 격리된 공간. | 
+| `which python3` | 지금 `python3`/`python` 명령이 **어느 실행파일을 가리키는지** 확인한다. |
+
+**실행 결과:**
+
+```
+(venv) sangku@BuildServer:ML $ which python3
+/p4_ws/sangku/26b_ai_vzw/Application/NR_CALL_APP/VCCB/ML/venv/bin/python3
+```
+
+- 프롬프트 맨 앞에 `(venv)`가 붙은 것과, `which python3` 결과가 시스템 경로(`/usr/bin/python3`)가 아니라 **`.../ML/venv/bin/python3`**를 가리키는 것으로 활성화 성공을 확인한다.
+- **왜 이 시점에 켜는가**: `synth_data_gen.py`는 파일 맨 위 주석에 "Dependencies: Python 3 standard library only"라고 적혀 있는 대로 표준 라이브러리만 쓰므로, 시스템 `python3`(venv 없이)로도 실행됐다. 하지만 **이 뒤로 나오는 `preprocess.py`/`train.py`/`export_weights.py`/`drift_monitor.py`는 numpy·pandas·torch 등 외부 패키지가 필요**해서, 반드시 이 venv가 켜진 상태에서 실행해야 한다. venv를 안 켜고 이 뒤 스크립트들을 돌리면 `ModuleNotFoundError: No module named 'torch'` 같은 에러가 난다.
+- 이후 H-1②부터 H-7까지 모든 python 명령어는 **이 venv가 계속 켜진 상태**(같은 쉘 세션)에서 실행된다고 가정한다.
+
 ### 2-3. H-1 ② preprocess.py (1차, base — shift.csv 없음)
 
-**실행 명령어:**
-
-```bash
-rm -f real/shift.csv
-VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> rm -f real/shift.csv
+> VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py
+> ```
 
 | 명령/환경변수 | 이 실행에서 준 값 | 의미 (소스: `preprocess.py`) |
 |---|---|---|
@@ -181,11 +208,11 @@ Saved → .../dataset.npz
 
 ### 2-4. H-1 ③ train.py (Phase 0, 전체 학습)
 
-**실행 명령어:**
-
-```bash
-python train.py
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> python train.py
+> ```
 
 | 명령/환경변수 | 이 실행에서 준 값 | 의미 (소스: `train.py`) |
 |---|---|---|
@@ -311,11 +338,11 @@ Model saved   → .../model.pt
 
 ### 2-5. H-1 ④ model.pt.phase1 백업
 
-**실행 명령어:**
-
-```bash
-cp -v model.pt model.pt.phase1
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> cp -v model.pt model.pt.phase1
+> ```
 
 `cp`(파일 복사)에 `-v`(verbose, 상세 출력) 옵션을 붙여서, 복사가 실제로 일어났는지 화면에 확인 문구를 찍게 한 것뿐이다(옵션 없이 `cp model.pt model.pt.phase1`만 해도 파일은 똑같이 복사되지만 아무 출력도 없다).
 
@@ -331,12 +358,12 @@ cp -v model.pt model.pt.phase1
 
 먼저 이 스크립트가 **무엇을 만드는지** 그림부터. H-1까지는 `vccb_ai_dataset.csv`(가상 UE 5,000명이 만든 64,465행)로 학습한 "base 모델"이 있다. `gen_realish_csv.py`는 이 base 모델이 **한 번도 보지 못한 새 3,000행**을 추가로 만들어서, "이 새 데이터를 보여주면 fine-tune이 실제로 모델을 움직이는가?"를 검증하기 위한 용도다. 스크립트 맨 위 주석에도 "이건 진짜 UE 데이터가 아니다. fine-tune 배관(warm start+freeze+early-stop+export)이 실제로 모델을 움직인다는 걸 증명하는 게 유일한 목적"이라고 스스로 밝히고 있다.
 
-**실행 명령어:**
-
-```bash
-mkdir -p real
-python3 gen_realish_csv.py --out real/shift.csv --n 3000 --dur-scale 2.2
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> mkdir -p real
+> python3 gen_realish_csv.py --out real/shift.csv --n 3000 --dur-scale 2.2
+> ```
 
 | 옵션 | 이 실행에서 준 값 | 의미 (소스: `gen_realish_csv.py` argparse) |
 |---|---|---|
@@ -378,11 +405,11 @@ python3 gen_realish_csv.py --out real/shift.csv --n 3000 --dur-scale 2.2
 
 ### 2-7. H-3 preprocess.py (2차, shift.csv 포함)
 
-**실행 명령어:**
-
-```bash
-VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preprocess.py
+> ```
 
 §2-3과 **완전히 똑같은 명령어**를 다시 실행하는 것뿐이다(옵션도 동일). 코드가 달라진 게 아니라, 그 사이(H-2)에 `real/` 디렉토리 안에 `shift.csv`가 새로 생겼기 때문에 **입력이 달라져서 결과가 달라진다** — `VCCB_AI_DATA_DIR=./real`이 그 디렉토리 안의 `*.csv`를 전부 훑는다는 걸 다시 상기할 것(§2-3 표 참고).
 
@@ -405,11 +432,11 @@ Total samples : 87,465  (real 67,465 = 77.1% / synthetic 20,000)
 
 ### 2-8. H-4 ① train.py (fine-tune, FREEZE_GRU)
 
-**실행 명령어:**
-
-```bash
-VCCB_AI_FINETUNE=1 VCCB_AI_FREEZE_GRU=1 python train.py
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> VCCB_AI_FINETUNE=1 VCCB_AI_FREEZE_GRU=1 python train.py
+> ```
 
 | 환경변수 | 이 실행에서 준 값 | 의미 (소스: `train.py`) |
 |---|---|---|
@@ -482,11 +509,11 @@ Best val loss : 0.2390
 
 ### 2-9. H-4 ② export_weights.py
 
-**실행 명령어:**
-
-```bash
-python3 export_weights.py
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> python3 export_weights.py
+> ```
 
 이 스크립트는 CLI 옵션도, 환경변수도 받지 않는다(`argparse` 자체가 없음) — 항상 같은 디렉토리의 `model.pt`를 읽어서 `../VCCB_MAIN/hdr/VccbAiWeights.h`에 쓰는 고정된 동작만 한다. 그래서 **어떤 `model.pt`가 지금 이 디렉토리에 있는지가 곧 결과를 결정한다** — H-4①(fine-tune)이 방금 덮어쓴 `model.pt`(=fine-tune 후 가중치)를 그대로 읽는다.
 
@@ -514,14 +541,14 @@ Exported → .../VCCB_MAIN/hdr/VccbAiWeights.h
 
 ### 2-10. H-7 drift_monitor.py
 
-**실행 명령어:**
-
-```bash
-sudo mkdir -p /var/log/vccb_ai
-sudo chown sangku:sangku /var/log/vccb_ai
-
-python drift_monitor.py --capture-baseline --state /var/log/vccb_ai/drift_state.json
-```
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> sudo mkdir -p /var/log/vccb_ai
+> sudo chown sangku:sangku /var/log/vccb_ai
+>
+> python drift_monitor.py --capture-baseline --state /var/log/vccb_ai/drift_state.json
+> ```
 
 | 명령/옵션 | 이 실행에서 준 값 | 의미 (소스: `drift_monitor.py` argparse) |
 |---|---|---|
@@ -547,12 +574,14 @@ python drift_monitor.py --capture-baseline --state /var/log/vccb_ai/drift_state.
 
 BuildServer에서는 VCCB가 안 돌고 있어서 위처럼 실패하지만, 실제 gNB 운영 환경에서는 아래 명령을 cron(예: 매일 새벽 3시)으로 등록해서 주기적으로 돌린다:
 
-```bash
-python3 drift_monitor.py \
-    --train-baseline $VCCB/ML/drift_baseline.json \
-    --state /var/log/vccb_ai/drift_state.json \
-    >> /var/log/vccb_ai/drift.log 2>&1
-```
+> 🖥️ **실행 명령어 (cron 등록용)**
+>
+> ```bash
+> python3 drift_monitor.py \
+>     --train-baseline $VCCB/ML/drift_baseline.json \
+>     --state /var/log/vccb_ai/drift_state.json \
+>     >> /var/log/vccb_ai/drift.log 2>&1
+> ```
 
 | 옵션 | 의미 (소스: `drift_monitor.py`) |
 |---|---|
