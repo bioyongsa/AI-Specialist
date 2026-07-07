@@ -5,7 +5,7 @@
 
 - 대상 독자: 미래의 나(sangku) — 로그 숫자를 보고 "이게 정상인가?"를 즉시 판단하기 위한 참조서.
 - 짝 문서: 절차(무엇을 어떤 순서로) = `VCCB_AI_Verification_Runbook.md`, 결과 해석(그 출력이 뭘 뜻하는지) = **이 문서**.
-- 예시 로그는 2026-07-06 BuildServer 실행분(재학습→UT 43/43 PASSED)을 그대로 인용한다.
+- 예시 로그·그림은 **2026-07-07 BuildServer 재실행분**(`--outlier-frac 0.02` 기본값 반영 + `evaluate.py` 필수화 이후 첫 실행, PNG 6종 전부 확보)을 그대로 인용한다. 2026-07-06 로그(옵션 추가 전)는 "이전 값과 비교" 문맥에만 남겨둔다.
 
 ---
 
@@ -37,9 +37,10 @@
 
 ```
 H-0  환경변수/정리     export VCCB, ITSCP  +  rm 산출물 전체
-H-1  base 학습        synth_data_gen.py → (rm real/shift.csv) → preprocess.py → train.py → cp model.pt.phase1
+H-1  base 학습        synth_data_gen.py(--outlier-frac 0.02) → (rm real/shift.csv) → preprocess.py → train.py → cp model.pt.phase1
 H-2  shift 생성       gen_realish_csv.py --out real/shift.csv --dur-scale 2.2
 H-3  재-preprocess    preprocess.py  (이번엔 shift.csv 포함 → dataset.npz 갱신)
+H-3b BEFORE 리포트     evaluate.py  (fine-tune 전 model.pt 상세 리포트, 필수)
 H-4  fine-tune+export VCCB_AI_FINETUNE=1 VCCB_AI_FREEZE_GRU=1 train.py → export_weights.py
 H-5  VCCB 재빌드      (docker) ITSCP_VCCB make
 H-5b bound 재보정     (재학습 후 AI_matrix_* 실패 시) gen_ai_matrix_tc.py
@@ -51,7 +52,7 @@ H-7  drift 검증       drift_monitor.py  (VCCB 운영 중일 때만 의미)
 
 | 파일 | 단계 | 설명 |
 |---|---|---|
-| `vccb_ai_dataset.csv` | H-1 | 합성 학습 원본 CSV |
+| `vccb_ai_dataset.csv` | H-1 | 합성 학습 원본 CSV (`--outlier-frac 0.02`로 2% 인공 이상치 포함) |
 | `real/shift.csv` | H-2 | 분포 이동시킨 fine-tune용 CSV |
 | `dataset.npz` | H-1, H-3 | 전처리 완료 텐서 (X_seq/X_stat/Y_prob/Y_time) |
 | `model.pt` | H-1, H-4 | 학습 가중치 (PyTorch state_dict, 최신=H-4) |
@@ -59,7 +60,9 @@ H-7  drift 검증       drift_monitor.py  (VCCB 운영 중일 때만 의미)
 | `train_report_full.png` | H-1 | base 학습 4-패널 리포트 ★ |
 | `train_report_finetune.png` | H-4 | fine-tune 4-패널 (before/after) ★ |
 | `train_metrics_*.json` | H-1/H-4 | 지표 기계판독본 (JSON) |
-| `outlier_report.png` | preprocess | outlier 필터 전/후 (drop>0일 때만) |
+| `outlier_report.png` | preprocess | outlier 필터 전/후 (H-1의 `--outlier-frac 0.02` 기본값으로 이제 매번 생성) |
+| `eval_pred_vs_true.png` / `eval_baseline_mae.png` / `eval_model_vs_oracle.png` | H-3b `evaluate.py` | fine-tune **전** 모델의 상세 리포트 그림 3종 (2026-07-07부터 필수, §2-7b/§4-4) |
+| `eval_report.txt` | H-3b `evaluate.py` | 위 리포트의 텍스트 사본 |
 | `VccbAiWeights.h` | H-4 | C++ 임베드 가중치 (1,266 param) |
 
 ---
@@ -90,7 +93,7 @@ H-7  drift 검증       drift_monitor.py  (VCCB 운영 중일 때만 의미)
 > 🖥️ **실행 명령어**
 >
 > ```bash
-> python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0
+> python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0 --outlier-frac 0.02
 > ```
 
 | 옵션 | 이 실행에서 준 값 | 의미 (소스: `synth_data_gen.py` argparse) |
@@ -99,15 +102,18 @@ H-7  drift 검증       drift_monitor.py  (VCCB 운영 중일 때만 의미)
 | `--ues` | `5000` | 시뮬레이션할 가상 UE 수. 기본값도 5000이라 사실 안 줘도 같은 결과지만, 명시적으로 적어서 의도를 분명히 한 것. |
 | `--seed` | `0` | 재현성 시드(아래 출력 설명의 `seed=0` 참고). 기본값도 0. |
 | `--profile` | (안 줌 → 기본값 `base`) | `base`(정상 인구 집단) / `field`(fine-tune용으로 뒤틀린 인구 집단) 중 선택. 이번엔 안 줬으므로 기본값 `base`가 적용됐다. |
-| `--outlier-frac` | (안 줌 → 기본값 `0.0`) | 행마다 이상치를 주입할 확률. 안 줬으므로 0.0(깨끗한 데이터). |
+| `--outlier-frac` | `0.02` | 행마다 이상치를 주입할 확률. **2026-07-07부터 `synth_data_gen.py` 자체의 기본값이 `0.0`→`0.02`로 변경**돼서, 이제는 이 옵션을 안 줘도 항상 0.02가 적용된다(명령어에 명시한 건 스크립트를 처음 보는 사람이 값을 바로 알 수 있게 하려는 것뿐, 실제로는 생략해도 결과가 같다). §2-3의 `preprocess.py` IQR 필터가 이렇게 주입된 행을 학습 전에 걸러내므로 **실제 학습 데이터에는 영향이 없고**, 대신 §4-3의 `outlier_report.png`가 매번 생성된다. |
 | `--append` | (안 줌 → 기본값 꺼짐) | 켜면 기존 파일에 이어붙이고, 꺼져 있으면(기본) 새로 덮어쓴다. 이번엔 꺼져 있으므로 `vccb_ai_dataset.csv`가 매번 새로 만들어진다. |
 
-**실행 결과:**
+**실행 결과 (2026-07-07 clean 재실행, 필터 강화 반영):**
 
 ```
-[synth_data_gen] wrote 64465 rows from 5000 virtual UEs -> vccb_ai_dataset.csv
-[synth_data_gen] profile=base outlier_frac=0.000 seed=0
+[synth_data_gen] wrote 65830 rows from 5000 virtual UEs -> vccb_ai_dataset.csv
+[synth_data_gen] profile=base outlier_frac=0.020 seed=0
 ```
+
+- `65830 rows` : outlier 주입(2%) 로직이 매 행 난수 소비 패턴을 바꿔서, outlier 없던 최초 버전(64,465행)과 총 행수가 다르다(버그 아님, 같은 seed=0이라도 난수 시퀀스가 밀린 것).
+- `outlier_frac=0.020` : `--outlier-frac 0.02`가 반영됨. 이 2%가 §2-3에서 필터에 걸려 학습 전에 제거된다.
 
 | 토큰 | 실제 동작 (소스: `synth_data_gen.py`) | 쉬운 설명 |
 |---|---|---|
@@ -158,39 +164,47 @@ H-7  drift 검증       drift_monitor.py  (VCCB 운영 중일 때만 의미)
 | `VCCB_AI_DATA_DIR` | `./real` | Method B로 읽을 **디렉토리**(그 안의 `*.csv`를 전부 병합). 기본값도 `real/`이라 마찬가지로 이번엔 명시가 필수는 아니다. 이 디렉토리에 `shift.csv`, `round_*.csv` 등이 쌓이는 게 §2-1에서 계속 언급된 "real/ 정리"의 대상이다. |
 | `python preprocess.py` | — | 옵션(argument) 없이 바로 실행. 이 스크립트는 CLI 플래그가 아니라 **전부 환경변수**로 동작을 제어한다(`VCCB_AI_SYNTH_N`, `VCCB_AI_OUTLIER_MODE`, `VCCB_AI_PROB_HORIZON` 등도 전부 환경변수이며, 이번엔 전부 기본값 그대로 사용됨). |
 
-**실행 결과:**
+> ✅ **2026-07-07 clean 실측**: 필터 강화 후, 주입된 4종 outlier가 **전부 잡혔다**(label 2종 799 + avg_dur 188 + ambr 167 = 1,154 = 1.75%). `avg_dur>7200s`, `ambr>10000Mbps` 규칙 줄이 새로 나타났고, 그 결과 §2-4의 persistence 베이스라인이 정상(22.62s)으로 돌아왔다.
+
+**실행 결과 (2026-07-07 clean 실측):**
 
 ```
-[Method B]   + 64,465 rows  (./vccb_ai_dataset.csv)
-[Method B] real CSV     : 64,465 unique samples from 1 file(s)
-[outlier] mode=iqr  real rows 64,465 -> 64,465 (dropped 0 = 0.00%)
+[Method B]   + 65,830 rows  (./vccb_ai_dataset.csv)
+[Method B] real CSV     : 65,830 unique samples from 1 file(s)
+[outlier] mode=iqr  real rows 65,830 -> 64,676 (dropped 1,154 = 1.75%)
+[outlier]   - label<1s (stamp race)             : 326
+[outlier]   - label>3600s (clock glitch)        : 473
+[outlier]   - avg_dur>7200s (impossible EMA)    : 188    ← 필터 강화로 신규 포착
+[outlier]   - ambr>10000Mbps (unit/parse glitch): 167    ← 필터 강화로 신규 포착
+[outlier] report plot -> .../outlier_report.png
 [Method A] synthetic    : 20,000 samples (3GPP 5QI rules)
 ----------------------------------------------------------------
-Total samples : 84,465  (real 64,465 = 76.3% / synthetic 20,000)
-  resume_prob=1 (resume < 60s): 55.1%
-  resume_time   : mean=343.8s  std=579.8s
+Total samples : 84,676  (real 64,676 = 76.4% / synthetic 20,000)
+  resume_prob=1 (resume < 60s): 55.6%
+  resume_time   : mean=336.9s  std=573.0s
 ```
 
 | 줄 | 실제 동작 (소스: `preprocess.py`) | 쉬운 설명 |
 |---|---|---|
-| `[Method B] + 64,465 rows (./vccb_ai_dataset.csv)` | `discover_real_csvs()`가 `VCCB_AI_DATA_FILE`(단일 파일)과 `VCCB_AI_DATA_DIR`(디렉토리, 기본 `./real/`) 안의 모든 `*.csv`를 pandas로 읽어들인다. 앞서 `rm -f real/shift.csv`를 했으므로 이 시점엔 `vccb_ai_dataset.csv` 하나만 있다. | "Method B"는 이 스크립트가 CSV **파일**에서 읽어온 데이터를 부르는 이름이다 — 합성이든 실측이든 CSV에 들어있으면 전부 Method B로 취급된다(§0의 "용어 함정" 참고). |
-| `real CSV : 64,465 unique samples from 1 file(s)` | 여러 CSV를 합친 뒤 `drop_duplicates()`로 완전히 똑같은 행을 제거한다. | 중복 제거 후 남은 "고유(unique)" 행 수와, 그걸 만든 파일 개수. 파일이 1개뿐이라 중복 제거로 줄어든 게 없다(64,465 그대로). |
-| `[outlier] mode=iqr ... dropped 0 (0.00%)` | **이상치(outlier) 필터**: 도메인 규칙(라벨이 1초 미만/3600초 초과, RSRP가 0~127 범위 밖 등)과 통계 규칙(`IQR fence`)으로 "있을 수 없는 값"을 가진 행을 학습 전에 제거한다. `IQR(Interquartile Range, 사분위 범위)` = 데이터를 크기순으로 4등분했을 때 25%~75% 지점 사이의 폭. 이 폭의 3배(`k=3.0`, 기본값)를 넘어서는 값을 "너무 멀리 떨어진 값"으로 보고 버린다. | base 데이터는 3GPP 규칙으로 처음부터 깨끗하게 만들어졌으니 버릴 게 0개인 게 정상이다. **실측 CSV를 넣었을 때 이 %가 갑자기 커지면** 로거 자체에 문제가 있다는 신호다(예: 타임스탬프 버그로 음수/초대형 dwell이 찍힘 — `synth_data_gen.py`의 `outlier_frac`이 흉내 내는 게 바로 이런 버그). |
+| `[Method B] + 65,830 rows (./vccb_ai_dataset.csv)` | `discover_real_csvs()`가 `VCCB_AI_DATA_FILE`(단일 파일)과 `VCCB_AI_DATA_DIR`(디렉토리, 기본 `./real/`) 안의 모든 `*.csv`를 pandas로 읽어들인다. 앞서 `rm -f real/shift.csv`를 했으므로 이 시점엔 `vccb_ai_dataset.csv` 하나만 있다. | "Method B"는 이 스크립트가 CSV **파일**에서 읽어온 데이터를 부르는 이름이다 — 합성이든 실측이든 CSV에 들어있으면 전부 Method B로 취급된다(§0의 "용어 함정" 참고). |
+| `real CSV : 65,830 unique samples from 1 file(s)` | 여러 CSV를 합친 뒤 `drop_duplicates()`로 완전히 똑같은 행을 제거한다. | 중복 제거 후 남은 "고유(unique)" 행 수와, 그걸 만든 파일 개수. 파일이 1개뿐이라 중복 제거로 줄어든 게 없다(65,830 그대로). |
+| `[outlier] mode=iqr ... dropped 1,154 (1.75%)` | **이상치(outlier) 필터**: 도메인 규칙(라벨이 1초 미만/3600초 초과, RSRP가 0~127 범위 밖, avg_dur>7200s, AMBR>10000Mbps 등)과 통계 규칙(`IQR fence`)으로 "있을 수 없는 값"을 가진 행을 학습 전에 제거한다. `IQR(Interquartile Range, 사분위 범위)` = 데이터를 크기순으로 4등분했을 때 25%~75% 지점 사이의 폭. 이 폭의 3배(`k=3.0`, 기본값)를 넘어서는 값을 "너무 멀리 떨어진 값"으로 보고 버린다. | `--outlier-frac 0.02`가 실제로 필터를 작동시켰다는 증거. 실측 CSV를 넣었을 때 이 %가 뜻밖에 크게 커지면 로거 자체에 문제가 있다는 신호이기도 하다(예: 타임스탬프 버그로 음수/초대형 dwell이 찍힘). |
+| 4개 규칙별 카운트: `label<1s`326 / `label>3600s`473 / `avg_dur>7200s`188 / `ambr>10000Mbps`167 | `synth_data_gen.py`의 `inject_outlier()`가 주입한 **4종 인공 버그가 각각 대응하는 도메인 규칙에 정확히 잡힌 것**: `label_zero`→`label<1s`, `label_spike`→`label>3600s`, `avgdur_spike`→`avg_dur>7200s`, `ambr_spike`→`ambr>10000Mbps`. 합계 326+473+188+167=1,154=`dropped` 전체와 일치. | ✅ **2026-07-07 필터 강화의 성과**: 이전엔 `avg_dur`/`ambr` 계열 2종이 log-space IQR fence를 빠져나가 학습 데이터에 섞이고 persistence 베이스라인을 폭발(→121.9s)시켰다. `preprocess.py`에 도메인 상한 2개(`AVGDUR_SANE_MAX_SEC=7200`, `AMBR_MAX_MBPS=10000`)를 추가해 이제 4종 전부 제거된다. |
 | `[Method A] synthetic : 20,000 samples (3GPP 5QI rules)` | CSV와 무관하게, `preprocess.py`가 자체적으로 3GPP 5QI 프로필(`FIVEQI_PROFILES`) 규칙에 따라 새 샘플 20,000개를 즉석에서 만들어 추가한다(`VCCB_AI_SYNTH_N` 환경변수로 개수 조절, 기본 20,000). | "Method A"는 CSV 없이 이 스크립트가 그 자리에서 만들어내는 데이터를 부르는 이름. 학습 데이터의 절대량과 5QI별 다양성을 보장하는 "안전판" 역할 — CSV(Method B)가 특정 5QI만 몰려 있어도 Method A가 균형을 채워준다. |
-| `Total samples : 84,465` | 64,465(Method B) + 20,000(Method A) = 84,465. 이후 두 그룹을 무작위로 뒤섞어(`rng.permutation`) 하나의 데이터셋으로 합친다. | 최종적으로 모델이 학습하게 될 전체 샘플 수. |
-| `real ... = 76.3%` | Method B(64,465) ÷ 전체(84,465) × 100 = 76.3%. | Method B(CSV)가 전체의 몇 %를 차지하는지. **이 비율이 높을수록 "CSV 기반" 학습 의존도가 높다**는 뜻이지만, §0에서 짚었듯 지금은 그 CSV 자체도 시뮬레이션이라 "실측 의존도"로 착각하면 안 된다. |
-| `resume_prob=1 (resume < 60s): 55.1%` | `Y_prob = (label_dur < 60초)`로 만드는 **분류 라벨(정답)**의 양성 비율. `PROB_HORIZON_SEC`(환경변수 `VCCB_AI_PROB_HORIZON`, 기본 60초) 안에 resume하면 양성(1), 아니면 음성(0). | 전체 샘플 중 "60초 이내에 금방 다시 깨어난" 샘플이 몇 %인지. 55.1%면 양성/음성이 거의 반반이라 **분류 학습에 유리한 균형 데이터**라는 뜻(한쪽으로 90% 이상 쏠리면 학습이 어려워진다). |
-| `resume_time mean=343.8s std=579.8s` | **회귀 라벨**(`Y_time`, dwell 원시 초)의 평균/표준편차. | dwell이 평균 343.8초(약 5.7분)이고, 표준편차(std)가 평균보다 더 큰 건 "로그정규분포(log-normal)"라서 그렇다 — 대부분은 짧게 끝나지만 아주 가끔 매우 길게 끄는 값(수천 초)들이 평균·표준편차를 크게 끌어올린다. 이런 긴 꼬리(롱테일)는 무선망 트래픽에서 흔한 정상 패턴이다. |
+| `Total samples : 84,676` | 64,676(Method B, 필터 후) + 20,000(Method A) = 84,676. 이후 두 그룹을 무작위로 뒤섞어(`rng.permutation`) 하나의 데이터셋으로 합친다. | 최종적으로 모델이 학습하게 될 전체 샘플 수. |
+| `real ... = 76.4%` | Method B(64,676) ÷ 전체(84,676) × 100 = 76.4%. | Method B(CSV)가 전체의 몇 %를 차지하는지. **이 비율이 높을수록 "CSV 기반" 학습 의존도가 높다**는 뜻이지만, §0에서 짚었듯 지금은 그 CSV 자체도 시뮬레이션이라 "실측 의존도"로 착각하면 안 된다. |
+| `resume_prob=1 (resume < 60s): 55.6%` | `Y_prob = (label_dur < 60초)`로 만드는 **분류 라벨(정답)**의 양성 비율. `PROB_HORIZON_SEC`(환경변수 `VCCB_AI_PROB_HORIZON`, 기본 60초) 안에 resume하면 양성(1), 아니면 음성(0). | 전체 샘플 중 "60초 이내에 금방 다시 깨어난" 샘플이 몇 %인지. 55.6%면 양성/음성이 거의 반반이라 **분류 학습에 유리한 균형 데이터**라는 뜻(한쪽으로 90% 이상 쏠리면 학습이 어려워진다). |
+| `resume_time mean=336.9s std=573.0s` | **회귀 라벨**(`Y_time`, dwell 원시 초)의 평균/표준편차. | dwell이 평균 336.9초(약 5.6분)이고, 표준편차(std)가 평균보다 더 큰 건 "로그정규분포(log-normal)"라서 그렇다 — 대부분은 짧게 끝나지만 아주 가끔 매우 길게 끄는 값(수천 초)들이 평균·표준편차를 크게 끌어올린다. 이런 긴 꼬리(롱테일)는 무선망 트래픽에서 흔한 정상 패턴이다. |
 
-이어서 나오는 **막대 히스토그램**(터미널 ASCII):
+이어서 나오는 **막대 히스토그램**(터미널 ASCII, 2026-07-07 실측):
 
 ```
 -- final dataset.npz ? Y_time (label_durationSec, log-scaled bins)
-  [      1.0,      2.2) |###########                         | 3,150
-  [     19.0,     30.8) |####################################| 9,864   ← 최빈 bin
+  [      1.0,      2.2) |############                        | 3,141
+  [     19.0,     30.6) |####################################| 9,756   ← 최빈 bin
   ...
-  [   2008.3,   3184.6) |#########                           | 2,470
-  n=84,465  real+synthetic merged
+  [   1987.6,   3149.5) |#########                           | 2,422
+  n=84,676  real+synthetic merged
 ```
 
 - 이건 **히스토그램(histogram)** — 값을 여러 구간(bin)으로 나눠서 각 구간에 몇 개가 들어가는지 세어 그린 그래프다. 각 행 = 구간 `[lo, hi)` 하나(lo 이상 hi 미만). `#` 길이는 그 구간에 속한 샘플 수에 비례한다(가장 긴 게 "최빈값 구간" = 가장 흔한 dwell 범위).
@@ -200,11 +214,11 @@ Total samples : 84,465  (real 64,465 = 76.3% / synthetic 20,000)
 
 ```
 Saved → .../dataset.npz
-  X_seq  (84465, 10, 2)  X_stat (84465, 14)
+  X_seq  (84676, 10, 2)  X_stat (84676, 14)
 ```
 
-- `X_seq (84465, 10, 2)` = 샘플수 × **시퀀스 길이 10(H)** × **[durationSec, resumeCause] 2피처**.
-- `X_stat (84465, 14)` = 샘플수 × **정적 피처 14(S)**. → **모델 계약 S=14, H=10 확인 포인트.** 여기 숫자가 다르면 즉시 중단.
+- `X_seq (84676, 10, 2)` = 샘플수 × **시퀀스 길이 10(H)** × **[durationSec, resumeCause] 2피처**.
+- `X_stat (84676, 14)` = 샘플수 × **정적 피처 14(S)**. → **모델 계약 S=14, H=10 확인 포인트.** 여기 숫자가 다르면 즉시 중단.
 
 ### 2-4. H-1 ③ train.py (Phase 0, 전체 학습)
 
@@ -221,15 +235,19 @@ Saved → .../dataset.npz
 | `VCCB_AI_EARLY_STOP_PATIENCE` | (안 줌 → scratch 기본값 `"0"`) | 조기종료 patience. FINETUNE이 꺼져 있을 때 기본값이 0(=조기종료 OFF)이라, 50 에폭을 항상 다 돈다. |
 | (내부 상수, CLI/환경변수 아님) | `EPOCHS=50`, `LR=1e-3`, `BATCH_SIZE=256`, `VAL_RATIO=0.15`, `SEED=42` | 이 값들은 스크립트 상단에 **고정 상수**로 박혀 있어 커맨드라인이나 환경변수로 바꿀 수 없다(scratch 학습은 항상 이 값). fine-tune만 `VCCB_AI_FINETUNE_LR`/`VCCB_AI_FINETUNE_EPOCHS`로 오버라이드 가능(§2-8). |
 
-**실행 결과 — 에폭 진행 테이블:**
+**실행 결과 — 에폭 진행 테이블 (2026-07-07 실측, 발췌):**
 
 ```
 Epoch      Train        Val   P_loss   T_loss
-    1     0.4320     0.2873   0.2708   0.0330 *
+    1     0.4302     0.2950   0.2788   0.0324 *
    ...
-   40     0.2198     0.2189   0.2068   0.0242 *
+   14     0.2266     0.2323   0.2199   0.0248 *
+   15     0.2254     0.2325   0.2202   0.0246       ← T_loss는 내려갔는데 * 없음(아래 설명)
+   16     0.2253     0.2311   0.2187   0.0247 *
    ...
-   50     0.2197     0.2189   0.2068   0.0242
+   47     0.2184     0.2259   0.2137   0.0243 *      ← best
+   ...
+   50     0.2193     0.2259   0.2137   0.0243
 ```
 
 | 열 | 실제 계산 (소스: `train.py`) | 쉬운 설명 |
@@ -239,45 +257,47 @@ Epoch      Train        Val   P_loss   T_loss
 | `Val` | 학습에는 전혀 쓰지 않고 따로 떼어둔 **검증셋(전체의 15%)**에 대해 같은 방식으로 계산한 손실. | **Val(validation, 검증) loss가 가장 중요한 숫자다.** Train loss는 "이미 공부한 문제"를 얼마나 잘 푸는지고, Val loss는 "한 번도 안 본 문제"를 얼마나 잘 푸는지다 — 실전에서 중요한 건 후자. **Train은 계속 내려가는데 Val이 다시 오르면 "과적합(overfitting)"** = 모델이 학습 데이터를 답 통째로 외워버려서 새 데이터에는 오히려 약해지는 현상. |
 | `P_loss` | Val 손실 중 분류(`BCE`) 부분만 따로 뽑은 값. | resume_prob(KEEP/RELEASE 결정) 예측이 얼마나 정확한지에 대한 손실. |
 | `T_loss` | Val 손실 중 회귀(`SmoothL1`) 부분만 따로 뽑은 값, 단 라벨이 양성(60초 이내 resume)인 샘플에서만 계산(`mask = y_prob > 0.5`). | resume_time(몇 초 뒤 resume할지) 예측이 얼마나 정확한지에 대한 손실. 음성 샘플(60초 넘도록 안 돌아올 UE)은 "몇 초 뒤"라는 숫자 자체가 의미 없으므로 회귀 손실 계산에서 제외한다. |
-| `*` | 그 에폭의 Val loss가 지금까지 나온 것 중 **가장 낮으면(최고 성능 갱신)** 붙는다. 이 순간 모델 가중치 전체를 메모리에 복사해 둔다(`best_state`). | 학습이 끝나면 **마지막 에폭의 가중치가 아니라, `*`가 마지막으로 붙었던 그 "제일 좋았던 순간"의 가중치**를 최종 `model.pt`로 저장한다. 그래서 50번째 줄에 `*`가 없어도 문제가 아니다 — 이미 더 좋았던 40번째 결과가 저장돼 있다. |
+| `*` | 그 에폭의 **`Val`(총 검증손실) 열**이 지금까지 나온 것 중 **가장 낮으면(최고 성능 갱신)** 붙는다(`marker = " *" if val_loss < best_val_loss`). 이 순간 모델 가중치 전체를 메모리에 복사해 둔다(`best_state`). | 학습이 끝나면 **마지막 에폭의 가중치가 아니라, `*`가 마지막으로 붙었던 그 "제일 좋았던 순간"의 가중치**를 최종 `model.pt`로 저장한다. 그래서 50번째 줄에 `*`가 없어도 문제가 아니다 — 이미 더 좋았던 47번째 결과가 저장돼 있다. |
 
-- 읽는 법: `*`이 뒤쪽 에폭까지 계속 붙다가 어느 지점부터 멈추면 "수렴"(더 이상 좋아지지 않는 지점에 도달)했다는 뜻. 여기선 40 근처에서 사실상 수렴(0.2189)하고 이후 평평 → 정상.
-- **조기종료(early stopping)**: Val loss가 `patience`(기본값, 예: 5)번 연속으로 개선되지 않으면(=`*`가 5번 연속 안 붙으면) 남은 에폭을 다 채우지 않고 학습을 일찍 끝내는 기능(`EARLY_STOP_PATIENCE`). 시간 낭비(더 이상 좋아지지 않을 게 뻔한데 계속 도는 것)를 막는다. **full 학습(scratch)은 기본 OFF(patience=0)**라 50 에폭을 항상 다 돌리고, **fine-tune은 기본 ON(patience=5)**이라 필요하면 일찍 멈춘다.
+> ⚠️ **`*`는 `T_loss`가 아니라 `Val`(총손실) 열을 따라간다** — 헷갈리기 쉬운 부분. 위 표 **epoch 15**를 보면 T_loss가 0.0248→0.0246으로 **내려갔는데도 `*`가 없다**. 이유는 그 열이 아니라 `Val`이 0.2323→0.2325로 **올라서** 최저 갱신에 실패했기 때문. 즉 `*` 판정 기준은 오직 `Val` 열 하나다(T_loss가 오르든 내리든 무관). 코드도 문서도 정상 동작이다.
+
+- 읽는 법: `*`이 뒤쪽 에폭까지 계속 붙다가 어느 지점부터 멈추면 "수렴"(더 이상 좋아지지 않는 지점에 도달)했다는 뜻. 여기선 47에서 최저(0.2259)를 찍고 이후 평평 → 정상.
+- **조기종료(early stopping)**: Val loss가 `patience`번 연속으로 개선되지 않으면(=`*`가 연속으로 안 붙으면) 남은 에폭을 다 채우지 않고 학습을 일찍 끝내는 기능(`EARLY_STOP_PATIENCE`). **full 학습(scratch)은 기본 OFF(patience=0)**라 `*`가 여러 번 연속 안 붙어도 **50 에폭을 끝까지 다 돈다**(이번 실행이 정확히 그 경우 — 38~46 사이 `*` 없이도 계속 돌았음). **fine-tune만 기본 ON(patience=5)**이라 5연속 정체 시 조기 중단한다. 즉 scratch 실행에서 early-stop이 "안 걸리는" 건 버그가 아니라 설계다.
 
 ```
-Best val loss : 0.2188
+Best val loss : 0.2259
 Model saved   → .../model.pt
 ```
 
-- 전체 에폭 중 최저 Val loss와, 그 best 가중치를 `model.pt`로 저장했다는 뜻(마지막 에폭이 아니라 **best**를 저장).
+- 전체 에폭 중 최저 Val loss(0.2259, epoch 47)와, 그 best 가중치를 `model.pt`로 저장했다는 뜻(마지막 에폭이 아니라 **best**를 저장).
 
 #### Phase-1 품질 지표 블록 (매 실행 자동 출력)
 
 ```
 ── Phase-1 quality metrics (val) ──
-  samples       : train=71,796 val=12,669 (val pos 6,866=54.2%)
-  [class] AUROC=0.9696 PR-AUC=0.9678 ECE=0.0097  @0.6: P=0.941 R=0.913 F1=0.927
+  samples       : train=71,975 val=12,701 (val pos 7,050=55.5%)
+  [class] AUROC=0.9678 PR-AUC=0.9682 ECE=0.0087  @0.6: P=0.939 R=0.910 F1=0.925
   [regr s] method                   MAE    RMSE     p90    bias
-           model                  10.64   13.20   20.42    0.34
-           naive                  12.35   14.96   23.32    0.08
-           persistence            22.97   76.99   38.89   12.87
-           oracle/core3           11.61   14.33   22.62   -0.04
-           oracle/full5           11.56   14.34   23.08   -0.34
-  [oracle core3] groups=63 cov=99.5% MAE(model,oracle)=3.62
-  [oracle full5] groups=190 cov=96.6% MAE(model,oracle)=3.44
-  [timer] premature-release model=30.2% persist=29.1%  |  wasted-hold model=69.8% (over ~8.5s p90 19.5s) persist=70.8%
+           model                  10.50   13.23   20.89   -0.22
+           naive                  12.41   15.12   24.02   -0.20
+           persistence            22.62   72.08   39.25   12.70
+           oracle/core3           11.65   14.46   23.48   -0.33
+           oracle/full5           11.59   14.44   23.53   -0.62
+  [oracle core3] groups=63 cov=99.6% MAE(model,oracle)=3.91
+  [oracle full5] groups=189 cov=96.6% MAE(model,oracle)=3.65
+  [timer] premature-release model=31.4% persist=29.6%  |  wasted-hold model=68.6% (over ~8.0s p90 18.6s) persist=70.3%
   [verdict] beats naive=Y  beats persistence=Y
 ```
 
 **samples 줄**
-- `train=71,796 val=12,669` : 85/15 분할. `val pos 6,866=54.2%` : 검증셋 양성(resume<60s) 개수와 비율.
+- `train=71,975 val=12,701` : 85/15 분할. `val pos 7,050=55.5%` : 검증셋 양성(resume<60s) 개수와 비율.
 
 **[class] 분류 지표** (resume_prob 품질, KEEP/RELEASE 결정용)
 
 | 지표 | 계산 (소스: `metrics.py`) | 쉬운 설명 | 기준 |
 |---|---|---|---|
 | AUROC | "Area Under the ROC Curve". 검증셋에서 양성 샘플 하나와 음성 샘플 하나를 무작위로 한 쌍씩 뽑는 걸 모든 조합에 대해 반복했을 때, **모델이 양성에 더 높은 점수를 준 비율**. 1.0=완벽, 0.5=동전 던지기(순전히 무작위)와 같음. | "이 모델이 KEEP 대상과 RELEASE 대상을 얼마나 잘 구별하는가"를 특정 임계값(0.6 등)과 상관없이 종합적으로 평가한 점수다. 0.97이면 "100번 비교 중 97번은 진짜 양성 쪽에 더 높은 점수를 준다"는 뜻. | > 0.90 |
-| PR-AUC | "Precision-Recall AUC" — precision(정밀도)-recall(재현율) 곡선 아래 면적. | AUROC와 취지는 비슷하지만, 양성/음성 비율이 한쪽으로 심하게 쏠린("불균형") 데이터에서 더 엄격하게 반응하도록 설계된 버전. 지금은 양성 54%로 이미 균형이 잡혀 있어서 AUROC(0.9696)와 거의 같은 값(0.9678)이 나온다. | 높을수록 좋음 |
+| PR-AUC | "Precision-Recall AUC" — precision(정밀도)-recall(재현율) 곡선 아래 면적. | AUROC와 취지는 비슷하지만, 양성/음성 비율이 한쪽으로 심하게 쏠린("불균형") 데이터에서 더 엄격하게 반응하도록 설계된 버전. 지금은 양성 55%로 이미 균형이 잡혀 있어서 AUROC(0.9678)와 거의 같은 값(0.9682)이 나온다. | 높을수록 좋음 |
 | ECE | "Expected Calibration Error(기대 보정 오차)". 모델이 "resume_prob=0.7"이라고 말한 샘플들을 한 그룹으로 모아서, 그중 실제로 몇 %가 진짜 60초 이내 resume했는지 확인하고, 그 실제 비율과 0.7의 차이를 평균 낸 값. | **모델이 뱉는 확률 숫자를 그대로 믿을 수 있는지**의 척도다. ECE=0.01이면 "0.7이라고 말했을 때 실제로도 대략 69~71%는 맞다"는 뜻 — 숫자 자체가 신뢰할 만하다는 것. ECE가 크면 "모델이 0.9라고 자신 있게 말해도 실제로는 60%밖에 안 맞을 수 있다"는 위험 신호다. | < 0.03 |
 | @0.6 P (precision, 정밀도) | resume_prob≥0.6인 샘플을 전부 KEEP으로 판정했을 때, **KEEP이라 판정한 것 중 실제로 맞은 비율** = TP/(TP+FP). | "모델이 KEEP이라고 한 것 중에 진짜 맞은 게 몇 %인가." 잘못 KEEP 판정(오탐, false positive)이 적을수록 이 값이 높다. | > 0.93 |
 | @0.6 R (recall, 재현율) | 같은 기준에서, **실제 양성(진짜 60초 이내 resume한 대상) 중 모델이 잡아낸 비율** = TP/(TP+FN). | "진짜 KEEP 대상 중에 모델이 놓치지 않고 잡아낸 게 몇 %인가." 놓친 것(미탐, false negative)이 적을수록 이 값이 높다. | > 0.90 |
@@ -286,7 +306,7 @@ Model saved   → .../model.pt
 **[regr s] 회귀 지표** (resume_time 초 예측, 양성 샘플만 — 음성은 "몇 초 뒤"가 의미 없어서 제외)
 
 예측 방법 (행):
-- **model**: 우리 GRU 모델의 예측. **이게 제일 낮아야(정확해야) 정상**(MAE 10.64s).
+- **model**: 우리 GRU 모델의 예측. **이게 제일 낮아야(정확해야) 정상**(MAE 10.50s).
 - **naive**: 가장 멍청한 기준선 — 학습셋 양성 샘플들의 dwell **전역 평균**을 모든 샘플에 똑같이 예측값으로 씀. "아무것도 안 배운 모델도 이 정도는 한다"는 최소 하한선.
 - **persistence**: `stat[9]`(그 UE의 직전 resume들 평균 dwell, `avgDurationSec`)를 그대로 이번 예측값으로 씀 — "방금까지 하던 대로 또 그럴 것"이라는 가장 단순한 예측 방식. C++ 엔진에 AI가 없다면 대신 쓸 법한 방식이라 **모델이 이걸 못 이기면 AI를 도입할 가치가 없다.**
 - **oracle/core3**: 검증이 아니라 "치팅"에 가까운 상한선 — (5QI, RSRP 구간, 성공률 구간) 3개 축이 똑같은 학습셋 샘플들의 dwell **평균**을 그 조합의 "정답"처럼 미리 계산해 놓고, 검증셋의 같은 조합에 그 평균값을 꺼내 쓴다. 모델이 "입력이 같으면 평균적으로 얼마나 걸리는지"를 완벽히 배웠다면 도달할 수 있는 **이론적 상한**에 가깝다.
@@ -296,17 +316,17 @@ Model saved   → .../model.pt
 | 지표 | 계산 | 쉬운 설명 |
 |---|---|---|
 | MAE (Mean Absolute Error) | `mean(\|예측−실제\|)` — 오차의 절댓값을 평균. | "평균적으로 몇 초씩 틀리는가." 가장 직관적인 지표. 낮을수록 좋음. |
-| RMSE (Root Mean Squared Error) | `sqrt(mean((예측−실제)²))` — 오차를 제곱해서 평균 낸 뒤 다시 제곱근. | MAE와 비슷하지만 **큰 오차에 훨씬 더 민감**하다(제곱을 하기 때문). RMSE가 MAE보다 훨씬 크면(예: persistence의 22.97 vs 76.99) "가끔 아주 크게 틀리는 샘플이 섞여 있다"는 신호. |
+| RMSE (Root Mean Squared Error) | `sqrt(mean((예측−실제)²))` — 오차를 제곱해서 평균 낸 뒤 다시 제곱근. | MAE와 비슷하지만 **큰 오차에 훨씬 더 민감**하다(제곱을 하기 때문). RMSE가 MAE보다 훨씬 크면(예: persistence의 22.62 vs 72.08) "가끔 아주 크게 틀리는 샘플이 섞여 있다"는 신호. |
 | p90 (90th percentile) | 절대 오차를 크기순으로 줄 세웠을 때 하위 90% 지점의 값. | "최악의 10%를 제외한 나머지는 이 초 이내로 맞힌다"는 뜻 — 꼬리(가장 잘 못 맞히는 부분) 성능을 보는 지표. |
-| bias (평균 부호오차) | `mean(예측−실제)` — 절댓값 없이 그대로 평균(부호 유지). | **+면 평균적으로 과대예측**(실제보다 길게 예측 → 타이머를 필요보다 오래 유지, 자원 낭비), **−면 평균적으로 과소예측**(실제보다 짧게 예측 → 타이머가 너무 빨리 끝나 조기 해제, 재접속 비용 증가). 0에 가까울수록 어느 방향으로도 치우치지 않았다는 뜻(model=+0.34로 거의 무편향). |
+| bias (평균 부호오차) | `mean(예측−실제)` — 절댓값 없이 그대로 평균(부호 유지). | **+면 평균적으로 과대예측**(실제보다 길게 예측 → 타이머를 필요보다 오래 유지, 자원 낭비), **−면 평균적으로 과소예측**(실제보다 짧게 예측 → 타이머가 너무 빨리 끝나 조기 해제, 재접속 비용 증가). 0에 가까울수록 어느 방향으로도 치우치지 않았다는 뜻(model=−0.22로 거의 무편향). |
 
 **[oracle …] 줄**
-- `groups=63 cov=99.5%` : oracle이 만든 (5QI,rsrp,succ) 조합 그룹 개수(63개) / 검증셋 중 그 그룹들로 커버되는 비율(99.5%). oracle은 학습셋에서 그 조합이 **30개 이상 나온 그룹만** "믿을 만하다"고 채택하므로(`N_MIN_GROUP=30`), 너무 드문 조합은 제외되고 그만큼 커버율이 100%보다 낮아진다.
-- `MAE(model,oracle)=3.62` : **우리 모델의 예측과 oracle(이론 상한)의 예측이 서로 얼마나 다른가**(초). 이 값이 작을수록 모델이 "이론적으로 가능한 최선"에 가깝게 학습됐다는 뜻. 3.6초면 매우 우수한 수준.
+- `groups=63 cov=99.6%` : oracle이 만든 (5QI,rsrp,succ) 조합 그룹 개수(63개) / 검증셋 중 그 그룹들로 커버되는 비율(99.6%). oracle은 학습셋에서 그 조합이 **30개 이상 나온 그룹만** "믿을 만하다"고 채택하므로(`N_MIN_GROUP=30`), 너무 드문 조합은 제외되고 그만큼 커버율이 100%보다 낮아진다.
+- `MAE(model,oracle)=3.91` : **우리 모델의 예측과 oracle(이론 상한)의 예측이 서로 얼마나 다른가**(초). 이 값이 작을수록 모델이 "이론적으로 가능한 최선"에 가깝게 학습됐다는 뜻. 3.9초면 매우 우수한 수준(§4-4의 `eval_model_vs_oracle.png`에서 점들이 대각선에 붙어 있는 것과 같은 의미).
 
 **[timer] 타이머 KPI** (모델 오차를 "실제 서비스에 어떤 영향을 주는가"로 번역한 지표)
-- `premature-release model=30.2%` : 모델이 추천한 타이머(`ceil(예측초 × MARGIN_FACTOR)`, MARGIN_FACTOR=1.2)가 실제 resume 시점보다 **짧게 끝나서** UE를 너무 일찍 IDLE로 강제 전환시킨 비율. 이러면 UE가 다시 접속할 때 RRC 셋업 절차를 처음부터 다시 밟아야 해서 자원·시간이 낭비된다. persist(기준선)의 29.1%와 비슷한 수준 — 모델이 이 부분에서는 기준선보다 특별히 낫지도 나쁘지도 않다.
-- `wasted-hold model=69.8% (over ~8.5s p90 19.5s)` : 반대로 타이머가 실제보다 **길게 유지돼서** gNB가 그 UE의 context를 필요 이상으로 붙잡아 둔 비율과, 그 낭비 시간(평균 8.5초, 최악 10%는 19.5초까지). `MARGIN_FACTOR=1.2`가 "예측값의 1.2배"로 **의도적으로** 여유를 주는 설계라서 이렇게 late(늦게 해제)가 많은 건 정상이다. 눈여겨봐야 할 건 비율이 아니라 **낭비되는 초의 크기**(8.5초면 작아서 괜찮음).
+- `premature-release model=31.4%` : 모델이 추천한 타이머(`ceil(예측초 × MARGIN_FACTOR)`, MARGIN_FACTOR=1.2)가 실제 resume 시점보다 **짧게 끝나서** UE를 너무 일찍 IDLE로 강제 전환시킨 비율. 이러면 UE가 다시 접속할 때 RRC 셋업 절차를 처음부터 다시 밟아야 해서 자원·시간이 낭비된다. persist(기준선)의 29.6%와 비슷한 수준 — 모델이 이 부분에서는 기준선보다 특별히 낫지도 나쁘지도 않다.
+- `wasted-hold model=68.6% (over ~8.0s p90 18.6s)` : 반대로 타이머가 실제보다 **길게 유지돼서** gNB가 그 UE의 context를 필요 이상으로 붙잡아 둔 비율과, 그 낭비 시간(평균 8.0초, 최악 10%는 18.6초까지). `MARGIN_FACTOR=1.2`가 "예측값의 1.2배"로 **의도적으로** 여유를 주는 설계라서 이렇게 late(늦게 해제)가 많은 건 정상이다. 눈여겨봐야 할 건 비율이 아니라 **낭비되는 초의 크기**(8.0초면 작아서 괜찮음).
 
 **[verdict]**
 - `beats naive=Y beats persistence=Y` : 앞서 설명한 두 기준선을 MAE 기준으로 모두 이겼는지(모델 MAE < 기준선 MAE). **둘 다 Y여야 이 AI 모델을 실제로 배포할 가치가 있다** — naive를 못 이기면 "아무것도 안 배운 것보다 못한" 모델이고, persistence를 못 이기면 "AI 없이 단순 평균값 쓰는 것보다 못한" 모델이라는 뜻이기 때문. 하나라도 N이면 학습 실패를 의심해야 한다.
@@ -315,24 +335,24 @@ Model saved   → .../model.pt
 
 ```
 -- regression MAE vs baselines (val positives) --
-  model       |#################                   | 10.64s
-  naive       |###################                 | 12.35s
-  persistence |####################################| 22.97s
+  model       |###                                 |  10.50s
+  naive       |####                                |  12.41s
+  persistence |####################################|  22.62s
 -- classification quality (Phase-1) --
-  AUROC  |####################################| 0.970
-  F1@0.6 |##################################  | 0.927
+  AUROC  |####################################| 0.968
+  F1@0.6 |##################################  | 0.925
 -- resume_prob separability (model output) --
   range                 resume<horizon   no-resume
-  [  0.00,  0.08)               |###########        44/4092
+  [  0.00,  0.08)               |##########         63/3931
   ...
-  [  0.92,  1.00) ##############|#                5214/191
+  [  0.92,  1.00) ##############|#                5435/196
 ```
 
-- **MAE 막대**: model 막대가 naive/persistence보다 짧아야 정상(그림으로 verdict 확인).
+- **MAE 막대**: model 막대가 naive/persistence보다 짧아야 정상(그림으로 verdict 확인). persistence가 22.62s라 model/naive 막대가 상대적으로 짧게 그려짐(persistence 오염 시엔 121.9s라 model 막대가 `#` 한두 칸으로 뭉개졌었는데, 필터 강화로 정상).
 - **분류 품질 막대**: AUROC/F1을 Phase-1 floor 대비 시각화.
-- **separability(분리도)**: 세로선(`|`) = KEEP 임계값 0.6. 왼쪽 숫자쌍 `44/4092` = 그 prob 구간의 (양성 수 / 음성 수).
+- **separability(분리도)**: 세로선(`|`) = KEEP 임계값 0.6. 왼쪽 숫자쌍 `63/3931` = 그 prob 구간의 (양성 수 / 음성 수).
   - 잘 학습됐다면 **음성(no-resume)은 왼쪽(prob 낮음)에, 양성은 오른쪽(prob 높음)에** 쏠린다.
-  - 여기선 `[0.00,0.08)`에 음성 4092개, `[0.92,1.00)`에 양성 5214개 → **깔끔하게 분리됨**(AUROC 0.97과 일치).
+  - 여기선 `[0.00,0.08)`에 음성 3,931개, `[0.92,1.00)`에 양성 5,435개 → **깔끔하게 분리됨**(AUROC 0.968과 일치).
 
 > ⚠️ **"MAE 막대"와 "분류 품질 막대"의 `|` 시작 위치가 서로 다른 건 오타/버그가 아니다.** 이 스크립트(`termplot.py`)는 막대그래프를 그릴 때마다 **그 그래프 안의 가장 긴 라벨 길이**에 맞춰 `|` 위치를 정한다. "MAE 막대"는 라벨 중 `persistence`(11글자)가 가장 길어서 `|`가 뒤로 밀리고, "분류 품질 막대"는 `F1@0.6`(6글자)이 가장 길어서 `|`가 앞에 온다. **같은 그래프 안(예: model/naive/persistence 세 줄)에서는 항상 정렬이 맞아야 하고**, 여기 예시들도 실제 그렇다 — 다른 그래프끼리는 애초에 맞출 필요가 없는 설계다.
 
@@ -413,22 +433,96 @@ Model saved   → .../model.pt
 
 §2-3과 **완전히 똑같은 명령어**를 다시 실행하는 것뿐이다(옵션도 동일). 코드가 달라진 게 아니라, 그 사이(H-2)에 `real/` 디렉토리 안에 `shift.csv`가 새로 생겼기 때문에 **입력이 달라져서 결과가 달라진다** — `VCCB_AI_DATA_DIR=./real`이 그 디렉토리 안의 `*.csv`를 전부 훑는다는 걸 다시 상기할 것(§2-3 표 참고).
 
-**실행 결과:**
+**실행 결과 (2026-07-07 실측):**
 
 ```
-[Method B]   + 64,465 rows  (./vccb_ai_dataset.csv)
+[Method B]   + 65,830 rows  (./vccb_ai_dataset.csv)
 [Method B]   + 3,000 rows  (./real/shift.csv)
-[Method B] real CSV     : 67,465 unique samples from 2 file(s)
-...
-Total samples : 87,465  (real 67,465 = 77.1% / synthetic 20,000)
-  resume_prob=1 (resume < 60s): 54.2%
-  resume_time   : mean=338.1s  std=571.6s
-  X_seq  (87465, 10, 2)  X_stat (87465, 14)
+[Method B] real CSV     : 68,830 unique samples from 2 file(s)
+[outlier] mode=iqr  real rows 68,830 -> 67,676 (dropped 1,154 = 1.68%)
+  (label<1s 326 / label>3600s 473 / avg_dur>7200s 188 / ambr>10000Mbps 167)
+[Method A] synthetic    : 20,000 samples (3GPP 5QI rules)
+----------------------------------------------------------------
+Total samples : 87,676  (real 67,676 = 77.2% / synthetic 20,000)
+  resume_prob=1 (resume < 60s): 54.7%
+  resume_time   : mean=331.4s  std=564.8s
+  X_seq  (87676, 10, 2)  X_stat (87676, 14)
 ```
 
-- 이번엔 **CSV 2개**(base + shift) → `from 2 file(s)`, total 87,465(=84,465+3,000). **H-3이 유효하게 동작한 증거.**
-- shift.csv가 반영돼 분포가 소폭 이동(resume<60s 55.1%→54.2%, mean 343.8→338.1). 이 미세 변화가 fine-tune이 배울 새 신호.
+- 이번엔 **CSV 2개**(base + shift) → `from 2 file(s)`, 필터 후 total 87,676(=84,676 + shift 3,000행이 필터 통과분만큼 반영). **H-3이 유효하게 동작한 증거.**
+- dropped가 여전히 1,154로 §2-3(H-1)과 같은 이유: base CSV의 outlier는 동일하고, 새로 추가된 shift.csv는 `gen_realish_csv.py`가 만든 깨끗한 데이터라 필터에 안 걸린다.
+- shift.csv가 반영돼 분포가 소폭 이동(resume<60s 55.6%→54.7%, mean 336.9→331.4). 이 미세 변화가 fine-tune이 배울 새 신호.
 - 만약 여기 total이 H-1과 **똑같으면** H-3 no-op → `real/shift.csv` 삭제 여부 재확인(§2-1).
+
+### 2-7b. H-3.5 evaluate.py (BEFORE baseline, 2026-07-07부터 필수)
+
+이전에는 "선택" 단계였지만, 지금은 **H-3과 H-4 사이에 반드시 실행**하도록 절차가 바뀌었다(Runbook Part H 동일 반영). 목적: fine-tune으로 `model.pt`가 덮어써지기 **전**, 지금 이 시점의 모델(=아직 base) 상태를 독립적인 리포트로 남겨서 나중에 "정말 fine-tune이 개선했는지"를 판단할 근거로 쓴다.
+
+> 🖥️ **실행 명령어**
+>
+> ```bash
+> python3 evaluate.py
+> ```
+
+| 옵션 | 이 실행에서 준 값 | 의미 (소스: `evaluate.py` argparse) |
+|---|---|---|
+| `python3 evaluate.py` | 옵션 없이 실행 | 같은 디렉토리의 `dataset.npz`(H-3까지 반영된 최신본)와 `model.pt`(아직 fine-tune 전=base)를 읽어서 리포트를 만든다. |
+| `--show` | (안 줌) | 켜면 생성된 PNG 3개를 OS 기본 이미지 뷰어로 자동으로 연다(데스크톱 세션 한정, headless/SSH에선 조용히 무시되고 파일은 정상 저장됨). |
+
+**이 스크립트가 하는 일**: `train.py`가 학습 끝에 자동으로 찍는 것과 **완전히 같은 계산**(`metrics.py`의 `compute_all()`)을 독립적으로 재실행해서 검증하고, `train_report_*.png`에는 없는 그림 하나(`eval_model_vs_oracle.png`)를 추가로 만든다. 그래서 여기서 나오는 AUROC/F1/MAE 숫자는 **§2-8의 `[FINETUNE] pre-FT on this val: ...`과 정확히 일치해야 한다** — 둘 다 "H-3까지 반영된 데이터셋 + fine-tune 전 model.pt"라는 같은 조건을 계산하는 것이기 때문이다. 값이 다르면 `dataset.npz`나 `model.pt`가 두 스크립트 사이에서 바뀌었다는 신호.
+
+**실행 결과 (2026-07-07 실측 — §2-8의 pre-FT 수치와 일치 확인됨):**
+
+```
+======================================================================
+VCCB AI evaluation report  (evaluate.py v1.1.0)
+======================================================================
+dataset : .../ML/dataset.npz
+model   : .../ML/model.pt
+  samples       : train=74,525 val=13,151 (val pos 7,099=54.0%)
+  [class] AUROC=0.9649 PR-AUC=0.9597 ECE=0.0141  @0.6: P=0.925 R=0.914 F1=0.919
+  [regr s] method                   MAE    RMSE     p90    bias
+           model                  10.66   13.35   21.13   -0.34
+           naive                  12.62   15.32   24.10   -0.11
+           persistence            21.92   64.18   39.44   12.08
+           oracle/core3           11.76   14.51   23.00   -0.16
+           oracle/full5           11.74   14.53   23.43   -0.39
+  [oracle core3] groups=63 cov=99.6% MAE(model,oracle)=3.95
+  [timer] premature-release model=32.1% persist=29.1%  |  wasted-hold model=67.9% ...
+  [verdict] beats naive=Y  beats persistence=Y
+======================================================================
+TERMINAL PREVIEW (see the PNG files for the full plots)
+======================================================================
+
+MAE bar (preview of eval_baseline_mae.png, lower = better)
+  model          ###############                  10.7s
+  naive          #################                12.6s
+  persistence    ##############################   21.9s
+  oracle/core3   ################                 11.8s
+  oracle/full5   ################                 11.7s
+
+[Auto-diagnosis for this run]
+  vs. baselines: beats naive=Y  beats persistence=Y
+  avg gap vs oracle(core3) groups: 3.9s (coverage 100%, 63 groups)
+    -> Gap is small: close to the best achievable with the current feature set.
+  premature-release=32.1%  wasted-hold=67.9%  (vs. persistence 29.1% / 70.7%)
+
+report saved -> .../ML/eval_report.txt
+plots saved -> eval_pred_vs_true.png, eval_baseline_mae.png, eval_model_vs_oracle.png
+```
+
+> ✅ **일치 확인**: 여기 `AUROC=0.9649 F1=0.919 MAE=10.66`은 §2-8의 `[FINETUNE] pre-FT on this val: AUROC=0.9649 F1=0.919 MAE=10.66s`와 **정확히 같다** → evaluate.py가 fine-tune 직전 base 모델을 올바르게 채점했다는 뜻. (evaluate는 H-3 이후 fine-tune 전에 돌렸으므로 이 시점 `model.pt`가 아직 base라서, val 분할·모델이 §2-8 pre-FT와 동일 조건. 참고로 §2-4(H-1 train 종료 시점) 수치와는 val 분할 seed가 같아도 미세하게 다를 수 있는데, 실제로 AUROC 0.9678(§2-4) vs 0.9649(여기)로 약간 다른 건 §2-4는 H-1 dataset.npz(84,676) 기준, 여기는 H-3 dataset.npz(87,676, shift 포함) 기준이라 데이터가 다르기 때문 — 정상.)
+
+| 블록 | 실제 동작 (소스: `evaluate.py`) | 쉬운 설명 |
+|---|---|---|
+| 상단 헤더(`===...===` ~ `[verdict]`) | `metrics.format_block(res)` 호출 — §2-4에서 이미 전부 설명한 **train.py와 똑같은 지표 블록**(AUROC/PR-AUC/ECE/F1/MAE/RMSE/oracle/timer/verdict)을 그대로 재출력한다. | §2-4의 지표 해설표를 그대로 적용하면 된다 — 새로운 지표가 아니라 같은 지표를 다른 스크립트로 다시 계산해 재확인하는 것. |
+| `TERMINAL PREVIEW` ~ MAE bar | `_build_interpretation()`이 PNG로 안 저장하고 화면에도 바로 보여주는 ASCII 미리보기. §2-4의 `termplot` bar와 형태는 같지만 **문자(`#`)를 고정으로 써서** PNG 없이 봐도 값 비교가 가능하게 만든 것. | `eval_baseline_mae.png`를 열지 않고도 터미널에서 model이 naive/persistence를 이겼는지 바로 확인 가능. |
+| `[What each of the 3 PNGs means]` | 스크립트가 **매 실행마다 자동으로 찍어주는 3개 PNG 설명문**(고정 문구, 영어) — PNG를 열기 전에 뭘 봐야 하는지 미리 알려준다. | 아래 §4-4에서 이 3개 PNG를 한국어로 더 자세히 해설한다. |
+| `[Auto-diagnosis for this run]` | `verdict`, `oracle gap`, `timer KPI`를 **이번 실행의 실제 숫자로 채워서** 한 문단짜리 자동 진단을 만든다(고정 문구가 아니라 조건문으로 분기: gap이 크면 "개선 여지 있음", 작으면 "이미 최선에 근접"). | 사람이 §2-4 표를 하나하나 안 봐도, 이 몇 줄만 읽으면 "이번 모델이 건강한지" 바로 판단 가능하게 요약해주는 부분. |
+| `report saved -> eval_report.txt` | 위 전체 텍스트를 UTF-8-BOM으로 파일에 그대로 저장(Windows 메모장에서 한글 안 깨지게). | 터미널을 닫아도 나중에 다시 열어볼 수 있는 텍스트 사본. |
+| `plots saved -> ...` | PNG 3개가 저장된 절대경로를 출력. | §4-4에서 이 3개 그림을 자세히 해석한다. |
+
+> **oracle 그룹이 하나도 없으면**(`g_oracle`이 빈 리스트) `eval_model_vs_oracle.png`는 생성되지 않고 `plots saved -> eval_pred_vs_true.png, eval_baseline_mae.png (no covered core3 groups)`로 2개만 저장된다 — 검증셋 샘플이 30개 미만인 (5QI,RSRP,성공률) 조합이 하나도 신뢰 그룹(§2-4 `N_MIN_GROUP=30`)에 못 들면 나타나는 정상적인 예외 상황.
 
 ### 2-8. H-4 ① train.py (fine-tune, FREEZE_GRU)
 
@@ -451,7 +545,7 @@ Total samples : 87,465  (real 67,465 = 77.1% / synthetic 20,000)
 ```
   [FINETUNE] warm start from .../model.pt
   [FINETUNE] lr=0.0002 epochs=15 freeze_gru=True
-  [FINETUNE] pre-FT on this val: AUROC=0.9622 F1=0.921 MAE=10.78s
+  [FINETUNE] pre-FT on this val: AUROC=0.9649 F1=0.919 MAE=10.66s
   Early stop: patience=5 (val loss)
 ```
 
@@ -470,42 +564,42 @@ stat[14] → MLP(16)  ──┘             └→ head_time(32→1, 선형)   �
 | `warm start from model.pt` | `model.load_state_dict(torch.load(MODEL_FILE))` — 새 모델을 무작위 값으로 시작하는 게 아니라, **H-1에서 이미 학습된 base 모델의 가중치를 통째로 불러와서 그 상태에서 이어 학습**한다. | "빈 백지에서 다시 배우기 시작" (=scratch 학습, H-1이 한 것) 이 아니라, "이미 어느 정도 아는 사람이 새 자료 몇 개만 더 보고 지식을 업데이트하는 것" (=warm start)이라는 뜻. |
 | `lr=0.0002 epochs=15` | fine-tune 전용 값(`VCCB_AI_FINETUNE_LR` 기본 2e-4, `VCCB_AI_FINETUNE_EPOCHS` 기본 15) — base 학습 때 쓰던 `lr=1e-3`, `epochs=50`보다 훨씬 작고 짧다. | `lr`(learning rate, 학습률)은 "한 번에 얼마나 크게 가중치를 바꿀지"를 정하는 값이다. base 학습처럼 큰 폭으로 계속 바꾸면, 이미 잘 배워둔 지식(3GPP 규칙 기반 prior)을 **덮어써서 잊어버리는** 현상이 생길 수 있다 — 이를 "**catastrophic forgetting(치명적 망각)**"이라 부른다. 학습률을 낮추고(0.0002) 에폭도 짧게(15) 잡아서, "기존 지식은 최대한 유지하면서 새 신호만 살짝 반영"하도록 조심스럽게 조정하는 것. |
 | `freeze_gru=True` | 환경변수 `VCCB_AI_FREEZE_GRU=1`을 켜면, 파라미터 이름이 `"gru."` 또는 `"mlp."`로 시작하는 것들을 전부 `requires_grad = False`로 만들어 **학습에서 제외**한다(옵티마이저에도 안 넘김). 그 결과 **위 그림의 앞단(GRU+MLP)은 그대로 얼려두고, 뒷단(`head_prob`, `head_time`) 2개짜리 작은 선형층만 학습**된다. | ⚠️ 이름은 "FREEZE_**GRU**"지만 실제로는 GRU뿐 아니라 **MLP까지 같이 동결**된다(변수 이름이 그 사실을 다 담지 못하는 것뿐). "구조/특징 추출 능력은 base가 배운 걸 그대로 믿고, 마지막에 숫자를 뽑아내는 부분만 새 데이터에 맞춰 미세조정"하는 전략이다. 데이터가 3,000행처럼 적을 때, 전체를 다 풀어놓고 학습시키면 그 적은 데이터로 GRU까지 망가뜨릴 위험이 있어서, 위험이 적은 head 2개(각각 32개 가중치+1개 편향뿐)만 건드리는 것. |
-| `pre-FT on this val: ...` | fine-tune 학습(에폭 루프)이 **시작되기 전에**, warm-start된(=base) 모델을 이번에 새로 나뉜 검증셋(shift.csv가 포함된 87,465개 중 15%)으로 먼저 채점해 둔다(`eval_on_val(model)`을 학습 전에 한 번 호출). | ★**"정직한 before" 스냅샷**★ — 이렇게 해야 "학습 전(pre-FT)"과 "학습 후(after)"를 **완전히 같은 검증 데이터**로 비교할 수 있다. (base 모델을 H-1 때의 val 결과와 비교하면 안 되는 이유는 §2-8 하단 "해석" 항목에서 다룬다 — 데이터셋 자체가 다르기 때문.) |
+| `pre-FT on this val: ...` | fine-tune 학습(에폭 루프)이 **시작되기 전에**, warm-start된(=base) 모델을 이번에 새로 나뉜 검증셋(shift.csv가 포함된 87,676개 중 15%)으로 먼저 채점해 둔다(`eval_on_val(model)`을 학습 전에 한 번 호출). | ★**"정직한 before" 스냅샷**★ — 이렇게 해야 "학습 전(pre-FT)"과 "학습 후(after)"를 **완전히 같은 검증 데이터**로 비교할 수 있다. 이 값(AUROC 0.9649/F1 0.919/MAE 10.66)은 §2-7b의 evaluate.py 출력과 **정확히 일치**한다(같은 조건이므로). |
 | `Early stop: patience=5` | Val loss가 5에폭 연속으로 지금까지의 최저치를 못 넘으면(=`*`가 5번 연속 안 붙으면) 15에폭을 다 채우지 않고 학습을 중단한다. | §2-4에서 설명한 "조기종료"와 같은 기능. fine-tune은 데이터가 적어서 오래 돌릴수록 오히려 과적합 위험이 커지므로 기본으로 켜져 있다. |
 
-에폭 테이블(1~15) 후:
+에폭 테이블(1~15, 이번엔 15에폭 전부 `*`가 붙으며 매 에폭 소폭 개선) 후:
 
 ```
-Best val loss : 0.2390
+Best val loss : 0.2348
 ...
-  [class] AUROC=0.9631 PR-AUC=0.9579 ECE=0.0092  @0.6: P=0.932 R=0.907 F1=0.919
-  model 10.76 / naive 12.64 / persistence 23.17 ...
+  [class] AUROC=0.9658 PR-AUC=0.9617 ECE=0.0095  @0.6: P=0.929 R=0.910 F1=0.919
+  model 10.69 / naive 12.62 / persistence 21.92 ...
   [verdict] beats naive=Y  beats persistence=Y
 ```
 
-터미널 before/after 막대 (실제 출력 그대로, 생략 없이):
+터미널 before/after 막대 (2026-07-07 실측, 생략 없이):
 
 ```
 -- regression MAE vs baselines (val positives) --
-  before FT   |#################                   | 10.78s
-  after FT    |#################                   | 10.76s
-  naive       |####################                | 12.64s
-  persistence |####################################| 23.17s
+  before FT   |#################                   | 10.66s
+  after FT    |##################                  | 10.69s
+  naive       |#####################               | 12.62s
+  persistence |####################################| 21.92s
 -- classification quality (Phase-1) --
-  AUROC before |####################################| 0.962
-  AUROC after  |####################################| 0.963
-  F1 before    |##################################  | 0.921
+  AUROC before |####################################| 0.965
+  AUROC after  |####################################| 0.966
+  F1 before    |##################################  | 0.919
   F1 after     |##################################  | 0.919
 ```
 
 - 첫 번째 그래프는 라벨 중 `persistence`(11글자)가 가장 길어서 `|`가 뒤에서 시작하고, 두 번째 그래프는 `AUROC before`(12글자)가 가장 길어서 그 기준으로 다시 정렬된다 — 위 §2-4 경고와 같은 이유(그래프별로 독립적인 라벨 폭 계산).
-- `AUROC before`와 `AUROC after`의 막대 길이가 시각적으로 거의 같은 건 이상이 아니다: 0.962→0.963의 차이(0.001)가 36칸짜리 막대 해상도로는 표현이 안 될 만큼 작아서다. **숫자(0.962/0.963)로 실제 변화를 확인**하고 막대 길이 차이는 크게 신경 쓰지 말 것.
+- `AUROC before`와 `AUROC after`의 막대 길이가 시각적으로 거의 같은 건 이상이 아니다: 0.965→0.966의 차이(0.001)가 36칸짜리 막대 해상도로는 표현이 안 될 만큼 작아서다. **숫자(0.965/0.966)로 실제 변화를 확인**하고 막대 길이 차이는 크게 신경 쓰지 말 것.
 
 **해석 (매우 중요):**
-- fine-tune 개선폭은 **작다**: MAE 10.78→10.76, AUROC 0.962→0.963, F1 0.921→0.919(F1은 살짝 감소).
-- 이건 정상 범위다. 이유: ① `freeze_gru=True`라 head 2개만 움직임, ② shift가 3,000행/전체 87,465행으로 미미, ③ 데이터가 이미 합성이라 분포가 급변하지 않음.
-- **핵심 판정: `pre-FT`와 after가 "완전히 소수점까지 동일"하면 H-3 누락(no-op) 신호.** 여기선 ECE·MAE가 아주 조금이라도 움직였으므로 fine-tune이 실제로 새 데이터를 봤다는 증거.
-- ⚠️ `Best val loss 0.2390`은 base의 0.2188보다 **높다**. 이건 나빠진 게 아니라 **다른 데이터셋**(shift 포함, 더 어려운 롱테일)의 val이라 절대비교 불가. 정직한 비교는 오직 **같은 split의 pre-FT vs after**(위 before/after 막대)다.
+- fine-tune 개선폭은 **작다**: MAE 10.66→10.69(오히려 0.03s 늘었지만 노이즈 수준), AUROC 0.965→0.966(소폭↑), F1 0.919→0.919(동일).
+- 이건 정상 범위다. 이유: ① `freeze_gru=True`라 head 2개만 움직임, ② shift가 3,000행/전체 87,676행으로 미미, ③ 데이터가 이미 합성이라 분포가 급변하지 않음. MAE가 0.03s "나빠진" 것도 이 규모에선 무의미한 흔들림(AUROC는 오히려 올랐음).
+- **핵심 판정: `pre-FT`와 after가 "완전히 소수점까지 동일"하면 H-3 누락(no-op) 신호.** 여기선 AUROC·ECE·MAE가 조금씩 움직였으므로 fine-tune이 실제로 새 데이터를 봤다는 증거.
+- ⚠️ `Best val loss 0.2348`은 base의 0.2259(§2-4)보다 **높다**. 이건 나빠진 게 아니라 **다른 데이터셋**(shift 포함, 더 어려운 롱테일)의 val이라 절대비교 불가. 정직한 비교는 오직 **같은 split의 pre-FT vs after**(위 before/after 막대)다.
 
 ### 2-9. H-4 ② export_weights.py
 
@@ -522,7 +616,7 @@ Best val loss : 0.2390
 ```
   Normalization folded into GRU_ih / MLP / head_time (C++ stays raw)
   Total parameters : 1,266
-  Inference @feature-mean : resume_prob=0.6685  resume_time_raw≈40.2s
+  Inference @feature-mean : resume_prob=0.6792  resume_time_raw≈38.0s
   (If resume_prob is still ~1.000 across varied inputs, revisit data balance.)
 Exported → .../VCCB_MAIN/hdr/VccbAiWeights.h
 ```
@@ -533,8 +627,8 @@ Exported → .../VCCB_MAIN/hdr/VccbAiWeights.h
 |---|---|---|
 | `Normalization folded into GRU_ih / MLP / head_time` | 학습 때는 입력값을 `(x - 평균μ) / 표준편차σ`로 **정규화(normalization)**해서 모델에 넣었다(§2-4의 train.py `SEQ_MEAN/STAT_MEAN` 등). 이 스크립트는 그 μ/σ 상수를 모델의 첫 번째 층(GRU 입력 가중치, MLP 가중치)과 마지막 층(`head_time`)의 가중치·편향 안에 수식으로 **미리 계산해 접어 넣는다**(`W/σ`, `b - (W/σ)·μ` 형태). | **정규화**란 "5QI(1~9)"와 "AMBR(10~2000)"처럼 단위·범위가 완전히 다른 숫자들을 비슷한 크기로 맞춰주는 전처리다(안 하면 큰 숫자가 학습을 지배해버린다). 문제는 C++ 엔진(`buildAiInput()`)은 이 정규화를 전혀 모른 채 **원본 그대로의 raw 값**(5QI=5, AMBR=350.0 등)을 넘긴다는 것. 그래서 "정규화를 접어 넣는다" = **C++ 코드는 하나도 안 바꾸고, 대신 가중치 숫자 자체를 수학적으로 조정**해서, raw 입력을 넣어도 마치 정규화된 입력을 넣은 것과 똑같은 결과가 나오게 만드는 트릭이다. |
 | `Total parameters : 1,266` | 모델의 모든 가중치·편향 개수를 합산(`sum(p.numel() for p in model.parameters())`). GRU(3×16×2 + 3×16×16 + 3×16 + 3×16) + MLP(16×14+16) + head_prob(32+1) + head_time(32+1) = 1,266. | ★**모델 계약 확인 포인트**★ — S(정적 피처 수)=14, H(시퀀스 길이)=10이라는 계약이 지켜졌다면 항상 정확히 1,266이 나와야 한다. 이 숫자가 다르면 C++ 쪽(`VccbAiEngine.h`)과 파이썬 쪽 모델 구조가 어긋났다는 뜻이므로 **뒤 단계(VCCB 재빌드)로 넘어가지 말고 즉시 원인을 찾아야 한다.** |
-| `Inference @feature-mean : resume_prob=0.6685` | 모든 입력 피처를 정규화 기준으로 "평균값"(정규화하면 0)에 놓고 모델에 한 번 돌려본 결과(`dummy_seq/stat = zeros`). 일종의 **건강검진용 더미 입력**. | "가장 평범한 조건의 UE"를 넣었을 때 모델이 뭐라고 답하는지 보는 것. 만약 이 값이 어떤 입력을 넣어도 항상 1.000에 가깝게 나온다면, 모델이 "무조건 KEEP"만 외쳐서 아무것도 구별 못 하고 있다는 신호(스크립트 출력의 경고 문구 "resume_prob이 여전히 ~1.000이면 데이터 균형을 재검토하라"가 이걸 말한다). 0.6685는 KEEP 임계값(0.6) 근처의 중간값이라 **건강하다**. |
-| `resume_time_raw≈40.2s` | 같은 "평균 조건" 입력에 대한 회귀 head의 예측(초 단위로 역정규화까지 마친 값). | 가장 평범한 UE라면 대략 40초 뒤에 돌아올 거라고 예측한다는 뜻. 상식적인 범위(수 초~수백 초)에 있으면 정상. |
+| `Inference @feature-mean : resume_prob=0.6792` | 모든 입력 피처를 정규화 기준으로 "평균값"(정규화하면 0)에 놓고 모델에 한 번 돌려본 결과(`dummy_seq/stat = zeros`). 일종의 **건강검진용 더미 입력**. | "가장 평범한 조건의 UE"를 넣었을 때 모델이 뭐라고 답하는지 보는 것. 만약 이 값이 어떤 입력을 넣어도 항상 1.000에 가깝게 나온다면, 모델이 "무조건 KEEP"만 외쳐서 아무것도 구별 못 하고 있다는 신호(스크립트 출력의 경고 문구 "resume_prob이 여전히 ~1.000이면 데이터 균형을 재검토하라"가 이걸 말한다). 0.6792는 KEEP 임계값(0.6) 근처의 중간값이라 **건강하다**. |
+| `resume_time_raw≈38.0s` | 같은 "평균 조건" 입력에 대한 회귀 head의 예측(초 단위로 역정규화까지 마친 값). | 가장 평범한 UE라면 대략 38초 뒤에 돌아올 거라고 예측한다는 뜻. 상식적인 범위(수 초~수백 초)에 있으면 정상. |
 | `Exported → VccbAiWeights.h` | 위 배열들을 문자열로 합쳐서 `../VCCB_MAIN/hdr/VccbAiWeights.h` 파일에 그대로 덮어쓴다. | C++ 쪽 헤더 파일이 최신 학습 결과로 갱신됐다는 뜻. 이 파일은 **C++ 소스 취급**이라 이후 p4 sync → VCCB(ITSCP_VCCB) 재빌드를 해야 실제 바이너리에 반영된다(파이썬 실행만으로는 VCCB 프로세스가 바뀌지 않는다). |
 
 > **export는 파이프라인 맨 끝 1회만.** base 직후 조기 실행하면 fine-tune 전 가중치가 헤더에 잠깐 쓰이는 위험 창이 생긴다. (메모리 [[feedback-retrain-preprocess-snapshot]] 규칙 3)
@@ -625,51 +719,113 @@ Checker UE State (callId: 80)
 
 > `lastInferTimerSec` 자세한 의미: Point①에서 AI가 계산해 E1AP에 설정한 InactivityTimer 값(초, 런타임 전용). KEEP이면 확장된 큰 값(예 35초), RELEASE면 MIN=1. UT는 `aiInfo:{lastInferTimerSecMin/Max}`로 이 값의 범위를 assert. (메모리 [[project-ai-matrix-test-suite]])
 
-> **재학습 후 이 band가 안 맞아 실패하면** → H-5b(`gen_ai_matrix_tc.py` 재실행)로 보정. 실패 메시지의 `is XX`가 새 모델의 실제 timer 값이므로 `skip:1`로 감추지 말 것. (2026-07-06 A_primary5qi_5 / E_rsrp_low가 이 경로로 [30,40] 보정됨)
+> **재학습 후 이 band가 안 맞아 실패하면** → H-5b(`gen_ai_matrix_tc.py` 재실행)로 보정. 실패 메시지의 `is XX`가 새 모델의 실제 timer 값이므로 `skip:1`로 감추지 말 것.
+
+> ⚠️ **2026-07-07 실측: 위 로그(43/43)는 2026-07-06 것이고, 필터 강화 clean 모델(2026-07-07)로 재빌드해 UT를 돌렸더니 `AI_matrix_E_rsrp_low` 1건이 실패**(42/43)했다. 실패 상세:
+> ```
+> + aiInfo::lastInferTimerSec >= 30.0 ( ue: 41.0 )
+> + aiInfo::lastInferTimerSec <= 40.0 ( ue: 41.0 )   ← Expected (timer) <= (hi): 41 vs 40
+> ```
+> 즉 이 케이스는 **RELEASE로 flip한 게 아니라 KEEP인데 timer가 35s(2026-07-06)→41s로 드리프트**해 옛 상한 40을 딱 1초 넘긴 것이다. `E_rsrp_low`는 label_dwell~48s로 60s 경계 바로 아래라, 재학습마다 이렇게 **KEEP timer가 몇 초씩 드리프트하거나(35→41) 때로는 RELEASE(timer=1)로 flip**해서 tight 밴드로는 계속 깨진다. **해결: 이 경계 케이스(E_rsrp_low + A_primary5qi_5)를 `gen_ai_matrix_tc.py`의 `BORDERLINE` 세트로 옮겨 밴드를 `[1,60]`으로 넓혔다** — RELEASE(1)·KEEP(~35~45) 어느 쪽이든, 몇 초 드리프트하든 통과하되 gross malfunction(timer=0 또는 3600 clamp)은 여전히 잡는다(41도 당연히 통과). 이 checker는 어차피 resume_prob 방향성은 검증 못 하므로(RELEASE면 timer 무조건 1) 테스트 취지 손상 없음. **JSON은 이미 재생성 완료(디스크에 [1,60] 반영)** — UT 재빌드(H-6)만 하면 43/43. 상세는 메모리 [[project-part-h-pipeline-rules]] / [[project-ai-matrix-test-suite]].
 
 ---
 
-## 4. PNG 그림 해석법
+## 4. PNG 그림 해석법 (2026-07-07 실제 실행 이미지)
 
-### 4-1. `train_report_full.png` — base 학습 4-패널
+아래 그림 6종은 전부 **2026-07-07 clean 재실행**(필터 강화 + `--outlier-frac 0.02` + evaluate 필수화 반영) 산출물이다. 이미지 파일은 이 문서 옆 `VCCB_AI_Running_Procedure.assets/` 폴더에 함께 보관돼 있다.
 
-**(1) 좌상 — 학습 곡선** `학습 곡선 — mode=full`
-- 파랑=train loss, **빨강=val loss** (과적합 감시 핵심)
-- 초록/주황 점선=val BCE(prob) / val SmoothL1(time)
-- 회색 세로점선=best 에폭
-- 읽는 법: 빨강이 내려가다 평평 → 정상. 다시 오르면 과적합.
+### 4-1. `train_report_full.png` — base 학습(H-1) 4-패널
 
-**(2) 우상 — 예측 vs 실제** `예측 vs 실제 (양성 N건) — MAE / bias`
-- x축=실제 resume_time, y축=예측
-- 빨강 점선 `y=x`=완벽선
-- **점들이 이 선에 몰릴수록 정확.**
-- 선 위=과대예측, 아래=과소예측
+![train_report_full](VCCB_AI_Running_Procedure.assets/train_report_full.png)
 
-**(3) 좌하 — 분류 분리도** `분류 분리도 — AUROC / F1 / ECE`
-- 초록=실제 양성(resume<60s), 빨강=실제 음성
-- 검정 점선=KEEP 임계값 0.6
-- **초록은 오른쪽(prob↑), 빨강은 왼쪽(prob↓)으로 갈라져야 좋음**
+이 한 장은 base 모델(H-1 scratch 학습)이 "제대로, 과하지도 모자라지도 않게 배웠는지"를 4개 그림으로 요약한 것이다. 하나씩 풀어서 본다.
 
-**(4) 우하 — MAE vs baseline** `회귀 MAE vs baseline`
-- 막대: model(파랑) vs naive/persistence(회색)
-- **model 막대가 제일 낮아야 함** (낮을수록 예측 정확)
+#### (1) 좌상 — 학습 곡선 (loss curve)
 
-### 4-2. `train_report_finetune.png` — fine-tune 4-패널
+**이 그래프가 뭘 보여주나:** 학습을 한 바퀴(에폭) 돌 때마다 모델이 "얼마나 틀리는지"(loss)가 어떻게 줄어드는지를 그린 것이다. 학습이 잘 진행되는지, 그리고 **언제 그만 배워야 하는지(과적합 시작점)**를 눈으로 잡아내는 게 목적이다.
 
-`train_report_full.png`와 같은 4-패널이되 **fine-tune 관점 추가**:
+**어떻게 읽나:** 가로축은 에폭(학습 반복 회차), 세로축은 loss(낮을수록 잘 맞힘). 선이 4개다 — 파랑=`train loss`(이미 공부한 문제 성적), **빨강=`val loss`(한 번도 안 본 문제 성적, 가장 중요)**, 초록 점선=val 중 분류(KEEP/RELEASE) 손실, 주황 점선=val 중 회귀(몇 초) 손실. 회색 세로 점선은 val이 가장 좋았던 에폭(`best`).
 
-- 패널 (1): 에폭이 15개(짧음), `mode=finetune (freeze_gru=True)`.
-- 패널 (4): **보라색 `before FT` 막대**가 추가되어 `after FT`와 나란히. 제목에 `AUROC 0.962 → 0.963` 델타 표기.
-  → **before ≥ after로 나빠지지 않고, 조금이라도 개선/유지되는지** 한눈에 확인하는 그림.
+**이번 실행 값과 결론:** 파랑·빨강이 처음 5에폭 만에 0.43→0.24로 뚝 떨어진 뒤 **0.226 부근에서 거의 평평**해졌고 `best @ 47`이 찍혔다. → 이렇게 "내려가다 평평"하면 **학습이 수렴했다(=더 배울 게 별로 안 남음)**는 정상 신호다. 그리고 **빨강(val)이 파랑(train) 아래로 벌어지지 않았다** — 만약 파랑만 계속 내려가고 빨강이 도로 올라갔다면 "답을 외워버린 과적합"인데, 그런 조짐이 없다. 주황(회귀)이 0.024로 바닥에 깔린 건 "몇 초 뒤"를 맞히는 게 상대적으로 쉬워서고, loss 대부분은 초록(분류, ~0.21)이 차지한다.
 
-### 4-3. `outlier_report.png` — 이상치 필터 전/후 (이번 실행은 미생성)
+#### (2) 우상 — 예측 vs 실제 (predicted vs actual)
 
-- preprocess.py가 **행을 실제로 버렸을 때만**(`dropped > 0`) 생성. 이번엔 base 데이터라 drop=0 → **파일 없음**(정상).
-- **실측 CSV 투입 시** 생성되면: 좌=label duration 분포(빨강 필터 전 / 초록 필터 후), 우=AMBR 분포. 빨강만 있고 초록이 없는 꼬리 = 걸러낸 이상치. **초록이 원 분포를 심하게 깎으면 필터가 과함**(IQR k 재조정 검토).
+**이 그래프가 뭘 보여주나:** 모델이 예측한 "몇 초 뒤 resume"과 실제로 걸린 시간을 점 하나하나로 찍어, **얼마나 정확한지**를 보는 산점도다.
 
-### 4-4. (선택) `eval_*.png` — evaluate.py 산출
+**어떻게 읽나:** 가로축=실제 resume 시간, 세로축=모델 예측. 빨강 점선 `y=x`가 "완벽 예측"선이다. 점이 이 선에 **바짝 붙을수록 정확**하고, 선 **위**에 있으면 과대예측(실제보다 길게 봄), **아래**면 과소예측(짧게 봄).
 
-- 이번 파이프라인에선 실행 안 함(H-4에서 `evaluate.py`는 선택 단계). 돌리면 동일 지표의 상세 플롯 + `eval_report.txt` 생성. 해석 기준은 §2-4 지표와 동일.
+**이번 실행 값과 결론:** 제목이 `MAE 10.5s / bias -0.2s`다. MAE 10.5초 = "평균적으로 10.5초씩 빗나간다", bias −0.2 = "전체적으로 과대도 과소도 거의 아님(균형)". 점 모양을 보면, 실제가 **0~20초로 짧은 쪽**에서는 예측이 **15~20초짜리 가로 띠**로 뭉쳐 있다 — 짧은 dwell들을 모델이 "대충 평균값쯤"으로 뭉뚱그린다는 뜻(회귀 모델의 전형적 습성). 실제가 **30초 이상 긴 쪽**은 점들이 y=x 선 아래로 넓게 흩어진다 = 긴 세션일수록 과소예측. → 완벽하진 않지만(무선망 dwell 자체가 워낙 들쭉날쭉해 원래 어려움), MAE 10.5초는 아래 (4)에서 보듯 단순 기준선들보다 훨씬 낫고 bias가 0 근처라 **건강한 수준**이다.
+
+#### (3) 좌하 — 분류 분리도 (separability)
+
+**이 그래프가 뭘 보여주나:** 모델이 "이 UE 곧 돌아올까?"라는 질문(resume_prob)에 대해 **양성(곧 돌아옴)과 음성(안 돌아옴)을 얼마나 확실하게 갈라놓는지**를 보는 히스토그램이다.
+
+**어떻게 읽나:** 가로축=모델이 낸 확률(0=안 돌아옴 확신, 1=곧 돌아옴 확신), 세로축=그 확률 구간에 들어간 샘플 수. **초록=실제로 양성이던 UE들, 빨강=실제로 음성이던 UE들.** 검정 점선(0.6)이 KEEP/RELEASE를 가르는 기준. **초록이 오른쪽(높은 확률), 빨강이 왼쪽(낮은 확률)으로 갈라질수록 좋은 모델**이고, 가운데(0.4~0.6)에 뭉쳐 있으면 "헷갈려한다"는 뜻이다.
+
+**이번 실행 값과 결론:** 빨강(음성)은 **0.0 근처에 3,200여 개가 우뚝** 솟아 있고, 초록(양성)은 **1.0 근처에 우뚝**, 가운데는 거의 텅 비었다. → 모델이 대부분의 UE를 "확신을 갖고" 0 아니면 1 쪽으로 몰아넣는다 = **분류를 아주 깔끔하게 한다.** 제목의 `AUROC 0.968`(1.0이 완벽), `F1 0.925`, `ECE 0.009`가 이 그림과 정확히 일치한다. 특히 ECE 0.009는 "모델이 0.7이라고 하면 실제로도 약 70% 맞다 = 확률 숫자를 그대로 믿어도 된다"는 뜻.
+
+#### (4) 우하 — MAE vs baseline (회귀 성능 비교)
+
+**이 그래프가 뭘 보여주나:** 우리 AI 모델이 **"머리 안 쓴 단순 규칙(baseline)"보다 정말로 나은지**를 막대로 비교한다. AI를 도입할 가치가 있는지 판단하는 최종 확인이다.
+
+**어떻게 읽나:** 세로축=MAE(초, 낮을수록 정확). 파랑=우리 model, 회색=baseline들. `naive`는 "무조건 전체 평균으로 찍기", `persistence`는 "직전 평균 dwell(stat[9]) 그대로 쓰기". **파랑이 회색들보다 낮아야** AI가 의미 있다.
+
+**이번 실행 값과 결론:** model **10.5s** < naive 12.4s < persistence **22.6s**. → 파랑이 제일 짧으니 `beats naive=Y, beats persistence=Y`, 즉 **두 기준선을 다 이겨 배포 가치가 있다.** 그리고 **persistence가 22.6초로 정상**인 점이 이번 재실행의 핵심 — 필터 강화 전(오염 데이터)엔 이 막대가 121.9초로 폭발해 다른 막대를 다 눌러버렸는데, 필터 수정으로 제자리를 찾았다.
+
+### 4-2. `train_report_finetune.png` — fine-tune(H-4) 4-패널
+
+![train_report_finetune](VCCB_AI_Running_Procedure.assets/train_report_finetune.png)
+
+§4-1과 똑같은 4-패널을 **fine-tune(미세조정) 모델**로 다시 그린 것이다. 보는 법은 §4-1과 같고, "base 대비 얼마나 달라졌나"에 초점을 두면 된다.
+
+- **(1) 학습 곡선**: 에폭이 15개로 짧고(제목 `mode=finetune (freeze_gru=True)`), train·val 곡선이 처음부터 **0.235 근처에서 거의 수평**이다. base처럼 뚝 떨어지는 구간이 없는 건 당연하다 — fine-tune은 "이미 배운 모델을 살짝 다듬는" 작업이라 크게 바뀔 게 없기 때문. `best @ 15`.
+- **(2) 예측 vs 실제**: `MAE 10.7s / bias -0.1s`. base(10.5s)와 사실상 같고 산점도 모양도 그대로다.
+- **(3) 분리도**: `AUROC 0.966 / F1 0.919 / ECE 0.010`. base와 거의 동일하게 양끝으로 잘 갈렸다.
+- **(4) MAE vs baseline (★ fine-tune 전용 포인트)**: 여기만 base와 다르다. **보라색 `before FT`(10.7s)**와 파랑 `after FT`(10.7s)가 나란히 서고, naive 12.6s, persistence 21.9s가 이어진다. 제목엔 `AUROC 0.965 → 0.966`.
+  - **읽는 법과 결론:** before(fine-tune 전)와 after(후)가 거의 같다 = **이번 fine-tune은 성능을 거의 안 바꿨다.** 이건 실패가 아니라 정상이다 — `freeze_gru=True`라 뒷단 head 2개만 미세조정했고, 새로 넣은 shift.csv가 3천 행/전체 8.7만 행으로 비중이 작기 때문(§2-8 해석 참고). 중요한 건 "**나빠지지 않았다**"는 것(AUROC는 0.965→0.966으로 오히려 소폭↑), 그리고 여전히 persistence를 크게 이긴다는 것. 그래서 건강한 fine-tune이다.
+
+### 4-3. `outlier_report.png` — 이상치 필터 전/후 (★ 이번 필터 강화가 실제로 먹혔다는 증거)
+
+![outlier_report](VCCB_AI_Running_Procedure.assets/outlier_report.png)
+
+**이 그래프가 뭘 보여주나:** preprocess가 학습에 넣기 전에 걸러낸 "말도 안 되는 값(이상치)"이 실제로 어떤 것들이었는지를, **필터 전(빨강) vs 후(초록) 분포로 겹쳐** 보여준다. 필터가 정상 데이터는 안 건드리고 쓰레기만 골라 버렸는지 눈으로 감사(audit)하는 그림이다. (preprocess가 행을 실제로 하나라도 버려야 생성되며, `--outlier-frac 0.02`가 기본인 지금은 매번 나온다.)
+
+**어떻게 읽나:** 가로축은 **로그 스케일**(값이 곱셈으로 커짐)이라 1초부터 10만 초까지 한눈에 보인다. 세로축=행 수. **빨강=필터 전(n=68,830), 초록=필터 후(n=67,676).** 빨강만 남아 있고 초록이 없는 구간 = **그 값들이 걸러졌다**는 뜻이다.
+
+**이번 실행 값과 결론:**
+- **왼쪽 그림(label 즉 dwell 분포):** 빨강 세로 점선(3600초, 타이머 상한) **오른쪽에 있는 빨강 꼬리**(10⁴~10⁵초)가 바로 `label_spike`(라벨 폭주 이상치)이고, 맨 왼쪽 1초 부근의 빨강 돌출이 `label_zero`(0초 이상치)다. 초록에는 이 둘이 **없다** → 전부 제거됨. 반면 가운데 정상 분포(20초와 1000초 두 봉우리)는 빨강·초록이 포개져 그대로 유지된다 = 정상 데이터는 안 건드림.
+- **오른쪽 그림(AMBR 분포):** 필터 전 빨강 중 **10⁴~10⁶ Mbps의 극단 꼬리**(`ambr_spike`, AMBR을 1000배로 부풀린 값)가 초록엔 없다 → 제거됨. 정상 대역(1 Mbps대·100 Mbps대 두 봉우리)은 그대로.
+- **핵심 의미:** 제목 `dropped 1,154 rows`. 이번에 인위적으로 주입한 4종 이상치(§2-2)가 이 그림과 터미널 리포트로 **전부 잡혔다**: `label<1s` 326 + `label>3600s` 473 + `avg_dur>7200s` 188 + `ambr>10000Mbps` 167 = 1,154. (avgdur_spike는 stat[9]라 이 그림에는 안 나오고 터미널 리포트 줄로만 확인된다.) **바로 이 avg_dur/ambr 2종이 필터 강화 전에는 안 잡혀 학습 데이터를 오염시키고 persistence를 121.9초로 폭발시켰던 것** — 이 그림이 "이제 4종 다 걸러진다"를 증명한다.
+
+### 4-4. `eval_*.png` — evaluate.py 산출 3종 (H-3 직후, fine-tune **전** base 모델 기준)
+
+세 그림 모두 **fine-tune 전(base) 모델**을 채점한 것이다(§2-7b에서 H-3 직후 실행). 학습 끝에 자동으로 나오는 `train_report_*.png`와 시점이 다르니 헷갈리지 말 것.
+
+#### (1) `eval_pred_vs_true.png` — 예측 vs 실제 산점도
+
+![eval_pred_vs_true](VCCB_AI_Running_Procedure.assets/eval_pred_vs_true.png)
+
+**뭘 보여주나 / 읽는 법:** §4-1 (2)와 완전히 같은 종류의 그림(가로=실제, 세로=예측, 빨강 점선=완벽선)을 base 모델로 그린 것. 제목 `MAE=10.7s`.
+
+**이번 값과 결론:** 실제 0~20초에서 예측이 15~20초 가로 띠로 뭉치고, 긴 dwell은 선 아래로 흩어진다 — **긴 세션일수록 과소예측**하는 경향이 뚜렷하다(무선망 dwell의 긴 꼬리를 모델이 평균 쪽으로 당기기 때문). 이 그림의 쓸모: 나중에 fine-tune 후 그림(§4-2 (2))과 나란히 놓고 "점들이 대각선에 더 붙었나"를 보면 fine-tune이 예측을 개선했는지 눈으로 판단할 수 있다(이번엔 before/after가 거의 같았다).
+
+#### (2) `eval_baseline_mae.png` — model vs 4개 기준선 막대
+
+![eval_baseline_mae](VCCB_AI_Running_Procedure.assets/eval_baseline_mae.png)
+
+**뭘 보여주나 / 읽는 법:** §4-1 (4)의 확장판이다. §4-1은 막대가 3개(model/naive/persistence)뿐이었는데, 여기는 **oracle 2종까지 총 5개** 막대로 더 촘촘히 비교한다. `oracle`은 "같은 조건(5QI/RSRP/성공률 등) 샘플들의 실제 평균으로 찍는" 사실상 커닝에 가까운 **이론적 상한선**이다.
+
+**이번 값과 결론:** 낮은 순서로 model **10.7** < oracle full5 11.7 ≈ oracle core3 11.8 < naive 12.6 < persistence **21.9**. → ① model이 naive·persistence보다 낮다(기준선 이김, 배포 가치 확인). ② model이 oracle보다도 **살짝 낮다**(10.7 vs 11.7) — oracle이 "그룹 평균"만 쓰는 데 비해 model은 그룹 내부의 개별 차이까지 조금 더 잡아내기 때문으로, 이 데이터에선 정상 범위다(둘 차이 3.9초, §2-7b). ③ **persistence 21.9초가 정상** — 오염 시엔 134.8초라 이 막대가 화면을 지배해 나머지가 다 뭉개졌었다.
+
+#### (3) `eval_model_vs_oracle.png` — 그룹별 모델 예측 vs oracle (★ 다른 그림엔 없는 유일한 뷰)
+
+![eval_model_vs_oracle](VCCB_AI_Running_Procedure.assets/eval_model_vs_oracle.png)
+
+**뭘 보여주나:** 검증셋을 (5QI, RSRP 구간, 성공률 구간) 조합별 그룹으로 묶고, 각 그룹에서 **"이론 상한(oracle)이 말하는 평균"과 "우리 model이 실제로 낸 평균 예측"이 얼마나 같은지**를 점으로 찍는다. 즉 "모델이 상황별 경향(구조)을 제대로 배웠나"를 그룹 단위로 검사하는 그림이다.
+
+**어떻게 읽나:** 가로축=그 그룹의 oracle 평균(μ_g), 세로축=그 그룹에서 model이 낸 평균 예측, 빨강 점선=완벽 일치선(y=x). **점 크기 = 그 그룹에 속한 샘플 수**(클수록 흔한 조합). 점들이 선에 붙을수록 "상황별 경향을 잘 배웠다"는 뜻.
+
+**이번 값과 결론:** 제목 `core3, 63 groups`. 점들이 **빨강 선에 아주 촘촘히 붙어 있다** — 특히 **큰 점(샘플 많은 15~20초대 그룹)들이 선 위에 정확히 얹혀 있다.** 30초 이상 큰 μ_g 그룹 몇 개만 선 아래로 살짝 처지는데, 이는 (1)에서 본 "긴 dwell 과소예측" 경향과 같은 현상이다. → 종합하면 model이 "이 조합이면 평균 몇 초"라는 **상황별 구조를 그룹 단위로 잘 학습**했다는 뜻이고, 터미널의 `MAE(model,oracle)=3.9s`("gap is small")와 정확히 일치한다. 만약 점들이 선에서 사방으로 흩어졌다면 "개별 노이즈엔 맞춰도 구조는 못 배운" 나쁜 신호였을 것이다. (참고: 학습셋 30샘플 미만 조합은 신뢰 그룹에서 제외되므로 — §2-4 `N_MIN_GROUP=30` — 신뢰 그룹이 0개면 이 그림 자체가 안 그려진다. 이번엔 63개라 정상 생성.)
 
 ---
 
@@ -687,14 +843,22 @@ Checker UE State (callId: 80)
 | ECE | < 0.03 | ✅ |
 | fine-tune B/A | 동일 아님 | ✅ |
 | export params | 1,266 | ✅ |
-| export prob@mean | 0.6~0.7 | ✅ |
-| UT result | 43/43 PASSED | ✅ |
+| export prob@mean | 0.6~0.7 | ✅ (0.6792) |
+| 11. outlier drop | `dropped > 0` + 4종 규칙 전부 + `outlier_report.png` 생성 | ✅ (1,154=1.75%, 4종 다 잡힘) |
+| 12. eval_report.txt | AUROC/F1/MAE가 §2-8 `pre-FT` 수치와 일치 | ✅ (0.9649/0.919/10.66 일치) |
+| 13. persistence MAE | ~22s 정상 (100s+면 outlier 누수) | ✅ (train 22.62 / eval 21.92) |
+| UT result (H-6) | 43/43 PASSED | ✅ **43/43 PASSED** (robust 밴드 적용 후 재빌드로 확정, 2026-07-07) |
+
+> ✅ **2026-07-07 UT 최종 확정 (43/43)**: clean 모델로 H-6를 처음 돌렸을 때 `AI_matrix_E_rsrp_low`가 KEEP timer 드리프트(35→41s)로 옛 상한 40을 1초 넘겨 실패(42/43)했다. `gen_ai_matrix_tc.py`에 `BORDERLINE` 세트를 추가해 E_rsrp_low·A_primary5qi_5 밴드를 `[1,60]`으로 넓히고 `test_SaRrcInactiveAI.json`을 재생성 → **UT 재빌드(`make clean` 포함) 후 43/43 PASSED, RUN_ALL_TESTS: 0 확인**. 이 두 경계 케이스는 앞으로 재학습해도 안 깨진다. (모델·PNG는 무변경 — 테스트 밴드만 조정했으므로 재학습/export 불필요, `$VCCB/Test/ut` 재빌드만.)
 
 **장애 진단**:
 - 4/5/6 실패 → 데이터/학습 문제 (§2-4 지표 재확인)
 - 3 실패 → real/ 미정리 (§2-1 cleanup 재실행)
 - 8 실패 → 구조 불일치 (LOCKSTEP 확인)
-- 10 실패 → H-5b bound 보정 필요 (§3 또는 메모리 [[project-part-h-pipeline-rules]] H-5b)
+- UT 실패 → H-5b bound 보정 필요 (§3 또는 메모리 [[project-part-h-pipeline-rules]] H-5b)
+- 11 실패(`dropped=0`) → `synth_data_gen.py` 기본값이 옛 버전(0.0)인지 확인, 또는 명령어에 `--outlier-frac 0.02`가 빠졌는지 확인 (§2-2)
+- 12 실패(수치 불일치) → `evaluate.py`를 H-3보다 먼저/나중에 실행했거나, 그 사이 `model.pt`/`dataset.npz`가 다른 단계에 의해 바뀐 것 — 실행 순서(H-3 → H-3b → H-4) 재확인
+- **13 실패(persistence MAE 100s+)** → outlier(특히 avgdur_spike)가 필터를 빠져나가 stat[9]를 오염시킨 것 → `preprocess.py`에 `AVGDUR_SANE_MAX_SEC`/`AMBR_MAX_MBPS` 도메인 상한이 있는지 확인 (2026-07-07 필터 강화, [[project-part-h-pipeline-rules]])
 
 ---
 

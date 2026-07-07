@@ -388,7 +388,7 @@ $VCCB/
 
 > **정리 정책**: H-1 시작 시 전부 삭제. 아래 단계에서 덮어쓰이기는 하지만, 구버전 파일이 남아있으면 "이번 실행 결과"인지 구분이 불가능하다.
 
-#### Group 2 — evaluate.py 선택 산출물 (H-3 이후 선택적으로 실행)
+#### Group 2 — evaluate.py 산출물 (H-3 이후, H-4 fine-tune 전 **필수** 실행)
 
 | 파일 | 내용 |
 |---|---|
@@ -754,7 +754,10 @@ rm -f real/eval_fixed.csv real/round_*.csv real/shift.csv
 
 ```bash
 # 1.2 학습데이터 재생성 (가상 UE 5,000대 시뮬레이션 -> vccb_ai_dataset.csv)
-python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0
+# --outlier-frac 0.02: 행의 2%에 실측 로거 버그(라벨 폭주/0초, AMBR/EMA 오염)를 흉내낸 값을 주입.
+#   preprocess.py의 IQR 필터가 이 행들을 학습 전에 걸러내므로 실제 학습에는 영향 없음 —
+#   대신 outlier_report.png(§Part F)가 매번 생성되어 필터가 살아있는지 항상 눈으로 확인 가능.
+python3 ./synth_data_gen.py --out vccb_ai_dataset.csv --ues 5000 --seed 0 --outlier-frac 0.02
 
 source venv/bin/activate
 which python3          # .../VCCB/ML/venv/bin/python3 이어야 정상 (아니면 sudo로 우회하지 말고 venv부터 activate)
@@ -792,7 +795,13 @@ VCCB_AI_DATA_FILE=./vccb_ai_dataset.csv VCCB_AI_DATA_DIR=./real python preproces
 
 > H-1과 완전히 동일한 명령이지만, **`real/`에 H-2에서 만든 `shift.csv`가 이미 있으므로 이번엔 그 내용이 `dataset.npz`에 포함된다.** 이 단계를 건너뛰면 다음 fine-tune이 신규 데이터를 전혀 못 보고 예전 데이터로만 재학습한다 — **과거에 실제로 이 단계를 빼먹은 채 진행한 적이 있었다**(§10-1/§10-2, before/after 지표가 소수점까지 동일했던 사례).
 
-(선택) 여기서 `python3 evaluate.py`로 fine-tune 전 baseline을 리포트로 남겨둘 수 있다(`eval_report.txt`) — 스킵해도 파이프라인엔 무해.
+**필수**: 여기서 `python3 evaluate.py`로 fine-tune 전(=아직 base) 모델의 상세 리포트를 남긴다.
+
+```bash
+python3 evaluate.py
+```
+
+산출물: `eval_report.txt` + PNG 3개(`eval_pred_vs_true.png`, `eval_baseline_mae.png`, `eval_model_vs_oracle.png`). `train.py`가 자동 출력하는 Phase-1 지표를 독립적으로 재계산해 검증하고, `train_report_*.png`에는 없는 **model vs oracle(그룹별 조건부 평균) 산점도**를 추가로 제공한다. `--show`를 주면 데스크톱 세션에서 PNG가 자동으로 열린다(headless면 무시됨, 파일은 정상 저장).
 
 ### H-4. fine-tuning 실행 + 가중치 export (docker 외부)
 
@@ -861,6 +870,8 @@ cd $VCCB/Test/ut/tool
 
 > `skip: 1`로 감추지 않는 이유: UT 실패 메시지의 `"is XX"`가 새 모델의 실제 timer 값이다. 감추면 이 값을 별도 수단으로 얻어야 한다. fail → fix → pass 2-cycle이 가장 빠르다.
 
+> **★ 경계 케이스는 tight 재보정 대신 robust 밴드 (2026-07-07 도입)**: `E_rsrp_low`, `A_primary5qi_5`처럼 label_dwell이 60s(prob-horizon) 바로 아래라 **재학습마다 KEEP↔RELEASE로 flip하는 케이스**는, tight하게 재보정해도 다음 재학습에 또 깨진다. 이런 케이스는 `gen_ai_matrix_tc.py`의 **`BORDERLINE` 세트**에 넣어 밴드를 `[1,60]`으로 넓히면(RELEASE 1·KEEP ~35 둘 다 허용) 재학습에 안 깨진다. aiInfo 체커는 어차피 `lastInferTimerSec`만 보고 resume_prob 방향성은 검증 못 하므로(RELEASE면 timer 무조건 1) 테스트 취지 손상 없음. 안정적으로 결정되는 케이스만 OBSERVED_KEEP/RELEASE에 tight하게 두고, 경계에서 반복 실패하는 케이스만 BORDERLINE으로 옮길 것.
+
 ---
 
 ### H-6. ut 실행 (docker 내부) — VCCB/Test/ut를 AI 옵션으로 빌드 + 실행
@@ -905,8 +916,8 @@ python3 drift_monitor.py \
 ```
 [docker 밖] rm Output/ut_results/ + rm dataset.npz/model.pt*/train_report*.png/eval*.png★ -> synth_data_gen.py -> rm real/shift.csv★ -> preprocess.py -> train.py(Phase 0) -> model.pt.phase1 백업 (H-1)
       │
-[docker 밖] gen_realish_csv.py(shift.csv) (H-2) -> preprocess.py 재실행★ (H-3)
-      │       -> [선택] evaluate.py(BEFORE) -> VCCB_AI_FINETUNE=1 [FREEZE_GRU=1] train.py(AFTER) -> export_weights.py (H-4)
+[docker 밖] gen_realish_csv.py(shift.csv) (H-2) -> preprocess.py 재실행★ (H-3) -> evaluate.py(BEFORE, 필수)
+      │       -> VCCB_AI_FINETUNE=1 [FREEZE_GRU=1] train.py(AFTER) -> export_weights.py (H-4)
       │       ※ p4 sync (VccbAiWeights.h 반영)
       │
 [docker 안] ITSCP_VCCB make (H-5) -> [docker 밖, 재학습 후 필요 시] gen_ai_matrix_tc.py 재실행 (H-5b)★ -> VCCB/Test/ut make + 실행 (H-6)
