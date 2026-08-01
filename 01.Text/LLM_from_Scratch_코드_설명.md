@@ -309,6 +309,9 @@ class MultiHeadAttention(nn.Module):
         # 4. Value 가중 합산 후 헤드 결합
         # [b, num_heads, num_tokens, head_dim] → [b, num_tokens, d_out]
         context_vec = (attn_weights @ values).transpose(1, 2)
+        # contiguous(): transpose는 메모리를 옮기지 않고 stride만 바꾼 '뷰'라
+        #   논리적 순서와 물리적 순서가 어긋납니다. view()는 메모리가 연속일 때만
+        #   동작하므로 빼면 RuntimeError. .reshape(...) 한 줄로 대체 가능합니다.
         context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
 
         # 5. 최종 선형 투영
@@ -321,6 +324,15 @@ class MultiHeadAttention(nn.Module):
 Wrapper: [head1 forward] + [head2 forward] + ... → 순차 실행 (느림)
 통합:    W_query로 전체 d_out 계산 → view로 헤드 분리 → 병렬 행렬 연산 (빠름)
 ```
+
+**출력 차원이 다릅니다 (자주 혼동)**
+
+- `MultiHeadAttentionWrapper`: 각 헤드가 `d_out`을 내고 concat → 최종 출력 **`num_heads × d_out`**
+- `MultiHeadAttention`: `d_out`을 `num_heads`로 **나눠 쓰므로** → 최종 출력 **`d_out`**
+
+그래서 통합 버전에는 `assert d_out % num_heads == 0`이 있고 `head_dim = d_out // num_heads`입니다. 두 버전을 같은 크기로 맞추려면 Wrapper의 `d_out`에 통합 버전의 `head_dim` 값을 넣어야 합니다.
+
+마지막 `view(b, num_tokens, d_out)`가 논문의 `Concat(head₁,...,head_h)`에 해당합니다. 메모리상 헤드 조각들이 이미 나란히 놓여 있어, 실제 복사 없이 shape만 바꿔 concat과 같은 결과를 얻습니다.
 
 ---
 
@@ -365,7 +377,17 @@ class LayerNorm(nn.Module):
 ```
 
 **왜 필요한가?**
-학습 중 각 층의 출력값 분포가 크게 달라지면 학습이 불안정해집니다 (Internal Covariate Shift). LayerNorm은 각 토큰의 특성 벡터를 평균=0, 분산=1로 정규화하여 **학습 안정성**을 높입니다.
+층이 깊어지면 각 층의 출력 스케일이 흔들려 기울기가 폭발하거나 소실되기 쉽습니다. LayerNorm은 각 토큰의 특성 벡터를 평균=0, 분산=1로 정규화해 **학습을 안정시키고 더 큰 학습률을 쓸 수 있게** 합니다.
+
+주의: 흔히 인용되는 "Internal Covariate Shift를 줄여서"라는 설명은 BatchNorm 논문(2015)의 주장으로, Santurkar et al.(2018)에 의해 반박되었습니다. 정규화는 ICS를 줄이지 않으며, 실제 효과는 **손실 지형(loss landscape)을 매끄럽게 만드는 것**으로 이해되고 있습니다.
+
+**코드 세부사항**
+
+- **`dim=-1`**: 배치나 다른 토큰과 무관하게 토큰 하나의 `emb_dim`차원 벡터 안에서만 통계를 냅니다. 배치 크기·시퀀스 길이에 의존하지 않아 LLM에 적합합니다(BatchNorm과의 결정적 차이).
+- **`keepdim=True`**: 축소된 축을 크기 1로 남겨 `(b, num_tokens, 1)`이 되게 합니다. `False`면 `x - mean`에서 브로드캐스팅이 깨져 shape 에러가 납니다.
+- **`unbiased=False`**: 분산을 `n-1`이 아닌 `n`으로 나눕니다(모분산). GPT-2 원본(TensorFlow) 구현과 계산을 일치시켜야 사전학습 가중치를 그대로 불러올 수 있습니다.
+- **`eps`의 위치**: 반드시 루트 **안**(`torch.sqrt(var + eps)`)에 넣습니다. 밖에 더하면 `var=0`일 때 `sqrt(0)`의 도함수가 무한대라 역전파에서 NaN이 발생합니다.
+- **`norm1`, `norm2`를 따로 두는 이유**: LayerNorm은 학습 파라미터 γ, β를 가지므로 재사용하면 두 위치가 스케일을 강제로 공유하게 됩니다. 반면 `drop_shortcut`은 학습 파라미터가 없어 하나를 두 번 써도 됩니다.
 
 ---
 
@@ -379,7 +401,14 @@ class GELU(nn.Module):
         ))
 ```
 
-**ReLU와의 차이:** ReLU는 x<0이면 완전히 0으로 만들지만, GELU는 **부드럽게 0으로** 만들어 기울기 흐름이 더 자연스럽습니다. GPT 계열 모델이 선호하는 활성화 함수입니다.
+**읽는 법:** "겔루" (**G**aussian **E**rror **L**inear **U**nit)
+
+**ReLU와의 차이:**
+
+- ReLU는 0에서 미분 불가능하지만 GELU는 모든 점에서 미분 가능해 기울기가 안정적입니다
+- ReLU는 음수 입력의 기울기가 정확히 0이라 뉴런이 영구 비활성화되는 **dying ReLU** 문제가 있는데, GELU는 작은 음수 값을 통과시켜 회복 여지를 남깁니다
+
+위 코드의 식은 GELU의 **tanh 근사식**입니다. 정확한 정의는 `x · Φ(x)`(Φ는 표준정규 누적분포함수)인데, 당시 `erf` 연산이 느려 근사식을 썼고 GPT-2 원본이 이를 사용하므로 가중치 호환을 위해 그대로 따릅니다.
 
 ---
 
@@ -399,7 +428,16 @@ class FeedForward(nn.Module):
         return self.layers(x)
 ```
 
-**역할:** Attention이 "어떤 토큰을 참조할지" 결정한다면, FeedForward는 "참조한 정보를 어떻게 변환할지"를 담당합니다. 각 토큰에 대해 **독립적으로** 처리되며, 4배 확장을 통해 더 풍부한 표현을 학습합니다.
+**역할:** Attention이 "어떤 토큰을 참조할지" 결정한다면, FeedForward는 "참조한 정보를 어떻게 변환할지"를 담당합니다. 각 토큰에 대해 **독립적으로**(position-wise) 처리되며, 4배 확장을 통해 더 풍부한 표현을 학습합니다.
+
+| | 역할 | 작용 축 |
+|---|---|---|
+| Attention | 토큰 **간** 정보 교환 | `num_tokens` 축을 가로질러 섞음 |
+| FeedForward | 토큰 **내** 정보 가공 | `emb_dim` 축만 변환 |
+
+**파라미터 비중**: emb_dim=768 기준 블록 하나당 FFN은 약 4.72M(= 768×3072+3072 + 3072×768+768)으로, 같은 블록의 어텐션(약 2.36M)의 **2배**입니다. 파라미터 기준으로는 FFN이 모델의 주력입니다.
+
+**GELU가 없으면**: Linear를 두 번 쌓아도 `W₂(W₁x+b₁)+b₂ = (W₂W₁)x + b'`가 되어 결국 `Linear(768,768)` 하나와 수학적으로 동일해집니다. 3072차원으로 확장한 의미가 사라지므로, 활성화 함수는 이 층이 존재하는 이유 그 자체입니다.
 
 ---
 
@@ -483,6 +521,27 @@ GPT_CONFIG_124M = {
 }
 ```
 
+**"124M"인데 실제로 세어 보면 163M인 이유 (weight tying)**
+
+| 구성 | 계산 | 개수 |
+|---|---|---|
+| `tok_emb` | 50257 × 768 | 38.6M |
+| `pos_emb` | 1024 × 768 | 0.8M |
+| TransformerBlock × 12 | (attn 2.36M + ffn 4.72M) × 12 | 85.0M |
+| `out_head` | 768 × 50257 | 38.6M |
+| **합계** | | **163,009,536** |
+
+GPT-2 원본은 `tok_emb`와 `out_head`의 가중치를 **공유**합니다(weight tying). 둘 다 `768 × 50257` 크기이고 "단어→벡터", "벡터→단어"로 서로 역방향 연산이라 같은 행렬을 쓰는 게 자연스럽습니다. 38.6M을 빼면 **124,412,160 ≈ 124M**입니다. 교재 코드는 이해를 위해 일부러 분리해 두었으므로 `sum(p.numel() for p in model.parameters())`를 찍으면 163M이 나옵니다.
+
+`out_head`에 `bias=False`인 이유: logits에 상수를 더해도 softmax 결과는 변하지 않고, weight tying과의 정합성 때문입니다.
+
+**그 밖의 세부사항**
+
+- **`final_norm`이 필요한 이유**: Pre-LN 구조에서는 마지막 블록의 출력이 정규화를 거치지 않은 상태입니다. 12번의 잔차 덧셈이 누적되어 스케일이 커져 있으므로 출력 헤드에 넘기기 전에 한 번 정리합니다. Post-LN이었다면 불필요합니다.
+- **`torch.arange(seq_len, device=in_idx.device)`의 `device=`**: 빠뜨리면 항상 CPU에 생성되어, 모델이 GPU에 있을 때 `RuntimeError: Expected all tensors to be on the same device`가 발생합니다.
+- **블록 생성 방식**: `[TransformerBlock(cfg) for _ in range(n)]`처럼 매번 새로 만들어야 합니다. `[block] * 12`로 쓰면 **같은 객체 12개**가 담겨 파라미터를 공유하게 되므로 완전히 다른 모델이 됩니다.
+- **logits의 의미**: 출력 `[batch, seq_len, vocab_size]`는 **모든 위치에서 동시에** 다음 단어를 예측한 결과입니다. 학습 시에는 전 위치를 손실 계산에 쓰고, 생성 시에만 마지막 것(`[:, -1, :]`)을 씁니다.
+
 ---
 
 ### 4-6. generate_text_simple — 텍스트 생성
@@ -534,7 +593,9 @@ def calc_loss_batch(input_batch, target_batch, model, device):
 ```
 
 **CrossEntropyLoss란?**
-정답 토큰의 로짓 점수가 높을수록 손실이 낮아집니다. 모델이 틀릴수록 큰 패널티를 주는 방식입니다.
+손실 = `-log P(정답 토큰)`입니다. 정답 토큰에 부여한 **확률**(softmax 후)이 1에 가까울수록 손실이 0에 가까워지고, 0에 가까울수록 손실이 무한대로 발산합니다.
+
+로짓 점수는 **다른 토큰 대비 상대적으로** 높아야 합니다. 로짓 전체에 같은 값을 더해도 손실은 변하지 않습니다. 또한 `F.cross_entropy`는 내부에서 log_softmax를 수행하므로 모델 출력에 softmax를 따로 적용하면 안 됩니다.
 
 ---
 
@@ -574,7 +635,9 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device,
 
 ---
 
-### 5-3. generate — 고급 텍스트 생성
+### 5-3. generate — EOS 종료 조건이 추가된 생성
+
+이 노트북의 `generate()`에는 docstring에 언급된 것과 달리 **temperature와 top-k 샘플링이 구현되어 있지 않습니다**(인자에도 없음). `generate_text_simple`과의 실질적 차이는 **EOS 토큰 종료 조건 하나뿐**입니다. 교재 원본의 `generate()`는 `temperature=0.0, top_k=None` 인자를 받아 `torch.multinomial`로 샘플링합니다.
 
 ```python
 def generate(model, idx, max_new_tokens, context_size, eos_id=None):
@@ -723,6 +786,8 @@ for param in model.final_norm.parameters():
 ```python
 def calc_loss_batch(input_batch, target_batch, model, device):
     # GPT는 시퀀스 전체를 출력하므로, 분류에는 마지막 토큰의 출력만 사용
+    # out_head를 교체한 뒤이므로 model(...)의 shape은
+    #   [batch, seq_len, num_classes(=2)] 이고, 슬라이싱 결과는 [batch, 2]
     logits = model(input_batch)[:, -1, :]  # ← -1이 핵심! 마지막 위치
     loss = torch.nn.functional.cross_entropy(logits, target_batch)
     return loss
@@ -747,11 +812,11 @@ def calc_accuracy_loader(data_loader, model, device, num_batches=None):
 
 ### LoRA란?
 
-**Low-Rank Adaptation(LoRA)** 는 대형 모델의 가중치를 그대로 두고, 훨씬 작은 **저랭크(Low-Rank)** 행렬만 추가로 학습하는 기법입니다.
+**Low-Rank Adaptation(LoRA)** 는 대형 모델의 가중치를 그대로 **동결**하고, 학습으로 생기는 **변화량 ΔW**만 훨씬 작은 **저랭크(Low-Rank)** 행렬 두 개의 곱으로 근사해 학습하는 기법입니다.
 
 ```
 기존 방식: W (전체 학습) — 수억 개 파라미터
-LoRA 방식: W + A×B (A, B만 학습) — 수천~수만 개 파라미터
+LoRA 방식: W(동결) + ΔW,  ΔW ≈ A×B (A, B만 학습) — 수만~수백만 개 파라미터
 ```
 
 ---
@@ -821,8 +886,23 @@ replace_linear_with_lora(model, rank=16, alpha=16)
 
 # 결과: 전체 파라미터 중 극히 일부(LoRA A, B)만 학습
 total_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(f"학습 파라미터 수: {total_trainable:,}")  # ← 전체의 ~0.1% 수준
+print(f"학습 파라미터 수: {total_trainable:,}")  # ← 전체의 약 2% 수준
 ```
+
+**실제 비율 계산 (rank=16, 모든 Linear에 적용)**
+
+```
+블록당: 4×(768·16 + 16·768)          = 98,304   (W_q, W_k, W_v, out_proj)
+      + (768·16 + 16·3072)          = 61,440   (FFN 확장)
+      + (3072·16 + 16·768)          = 61,440   (FFN 축소)
+      ────────────────────────────────────────
+                                      221,184
+× 12 블록                           = 2,654,208
+
+분류용 베이스 모델(약 124M) 대비 → 약 2.13%
+```
+
+rank를 4~8로 낮추거나 어텐션의 Q/V에만 적용하면 0.1%대까지 내려갈 수 있습니다.
 
 ---
 
@@ -1248,7 +1328,8 @@ attn_scores.masked_fill_(..., -torch.inf)
 softmax(-inf) = e^(-inf) / Σe^(scores) = 0 / Σ = 0
 ```
 즉, 마스킹된 위치는 softmax 이후 **확률이 정확히 0**이 됩니다.
-다른 값(예: -1000)을 넣으면 완전히 0이 되지 않아 미세한 정보 누출이 발생할 수 있습니다.
+
+참고로 `-1000` 같은 큰 음수 유한값을 써도 float32에서는 `exp`가 언더플로하여 결과가 **똑같이 0**이 됩니다. 실무 구현이 `-inf` 대신 `torch.finfo(dtype).min`을 쓰기도 하는 이유는, 한 행이 **전부** 마스킹될 경우 `-inf`가 `0/0 → NaN`을 만들 수 있기 때문입니다. causal mask에서는 대각선이 항상 열려 있어 이 문제가 생기지 않으므로 `-torch.inf`가 안전합니다.
 
 ---
 
@@ -1353,7 +1434,7 @@ self.layers = nn.Sequential(
 ```
 
 **이유:**
-- 확장 배수 `4`: GPT 논문에서 확립된 관행. 차원을 4배로 늘렸다가 다시 줄이는 "병목(Bottleneck)" 구조입니다. 더 풍부한 비선형 표현을 학습할 수 있습니다.
+- 확장 배수 `4`: 원 Transformer 논문("Attention Is All You Need", 512→2048)에서 확립된 관행으로 GPT·BERT·LLaMA가 모두 따릅니다. 차원을 4배로 늘렸다가 다시 줄이는 **확장(expansion) 구조**입니다(넓게→좁게→넓게 가는 ResNet식 "병목(Bottleneck)"과는 반대 방향이므로, 굳이 부르자면 inverted bottleneck). 좁은 공간에서는 비선형 변환의 표현력이 제한되므로, 넓은 공간으로 올려 비선형을 적용한 뒤 되돌립니다.
 - `GELU()`: GPT 계열이 선택한 활성화 함수. ReLU보다 부드러운 비선형성을 제공하고 음수 구간에서도 작은 기울기를 유지합니다.
 - 3개 레이어로 구성: `확장 → 비선형 → 축소`
 
@@ -1555,7 +1636,10 @@ optimizer.step()                                            # ⑤
 ② optimizer.zero_grad()
    → PyTorch는 기본적으로 기울기를 누적(accumulate)합니다
    → 매 배치마다 반드시 초기화해야 이전 배치의 기울기가 섞이지 않음
-   → 빠뜨리면 기울기가 계속 쌓여 학습이 폭발(exploding gradient)함
+   → 빠뜨리면 이전 배치들의 기울기가 누적된 채로 업데이트되어 학습이 망가짐
+   → 이것은 "exploding gradient"(깊은 층의 연쇄 곱으로 기울기가 발산하는 현상)와는
+      별개의 문제입니다. 참고로 의도적으로 누적시켜 큰 배치를 흉내내는
+      gradient accumulation 기법도 있습니다
    
 ③ calc_loss_batch(...)
    → 순전파(forward pass) 수행 후 손실값 계산
@@ -1666,14 +1750,19 @@ logits = model(input_batch)[:, -1, :]
 ```
 
 **이유:**
-GPT는 언어 모델이기 때문에 각 위치마다 출력을 생성합니다 (shape: `[batch, seq_len, vocab_size]`).
-분류 작업에서는 **전체 문장의 의미를 집약한 표현**이 필요한데, GPT에서는 모든 이전 토큰을 참조할 수 있는 **마지막 토큰(`-1`)의 출력**을 사용하는 것이 관행입니다.
+GPT는 언어 모델이기 때문에 각 위치마다 출력을 생성합니다.
+분류 작업에서는 **전체 문장의 의미를 집약한 표현**이 필요한데, causal mask 때문에 시퀀스 전체를 참조할 수 있는 토큰은 **마지막 토큰(`-1`)뿐**입니다. 그래서 마지막 위치의 출력을 사용합니다.
 
 ```
-[batch, seq_len, vocab_size]
+[batch, seq_len, num_classes]      ← out_head를 Linear(768, 2)로 교체한 뒤의 출력
              ↓ [:, -1, :]
-[batch, vocab_size]  ← 이걸 분류 헤드에 넣음
+[batch, num_classes]  ← 이 값이 곧 클래스 로짓 (cross_entropy에 바로 투입)
 ```
+
+**두 가지 주의**
+
+1. 이 시점에는 이미 `model.out_head`가 `Linear(768, 2)`로 **교체된 뒤**이므로 마지막 차원은 `vocab_size(50257)`가 아니라 `num_classes(2)`입니다.
+2. 분류 헤드는 모델 **안**에 있습니다. `[:, -1, :]` 슬라이싱은 헤드를 **통과한 뒤**에 일어나므로, "잘라낸 값을 분류 헤드에 넣는다"는 순서가 반대입니다.
 
 ---
 
@@ -1743,10 +1832,10 @@ self.B = nn.Parameter(torch.zeros(rank, out_dim))  # [rank, out_dim]
 ```
 
 **이유:**
-LoRA의 핵심 아이디어: 가중치 행렬 `W`(크기: in_dim × out_dim)를 두 작은 행렬의 곱 `A × B`로 근사합니다.
+LoRA의 핵심 아이디어: 기존 가중치 `W`는 **동결한 채 그대로 두고**, 학습으로 생기는 **변화량 ΔW**만 두 작은 행렬의 곱으로 근사합니다. `W` 자체를 근사하는 것이 아니라는 점이 중요합니다(뒤의 Q29 `output = W·x + ΔW·x` 참고).
 
 ```
-W (in_dim × out_dim) ≈ A (in_dim × rank) × B (rank × out_dim)
+ΔW (in_dim × out_dim) ≈ A (in_dim × rank) × B (rank × out_dim)
 
 rank << min(in_dim, out_dim)이면 파라미터 수가 크게 줄어듦
 
@@ -1980,6 +2069,12 @@ targets = [t1, t2, t3, PAD, -100, -100]
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
+**헷갈리기 쉬운 지점 — GPT에는 Cross-Attention이 없습니다**
+
+위 그림의 화살표(Encoder → Context Vector → Decoder)는 **원 Transformer(번역 모델)**의 구조입니다. 그 Decoder에는 인코더 출력을 받는 **Cross-Attention** 층이 블록마다 하나 더 들어 있어, 한 블록이 `Masked Self-Attn → Cross-Attn → FFN` 3단으로 구성됩니다.
+
+반면 **GPT는 Decoder-Only**라서 Encoder도, Cross-Attention도 **없습니다**. 이 노트북의 `TransformerBlock`은 `Masked Self-Attn → FFN` 2단뿐입니다. 아래 "Decoder 내부 처리 절차"는 원 Transformer의 Decoder가 아니라 **GPT 블록**을 설명한 것으로 읽어야 합니다.
+
 ---
 
 ## 2. Encoder 내부 처리 절차 (단계별 도식)
@@ -1995,7 +2090,8 @@ Encoder는 **입력 문장 전체를 양방향으로 이해**하는 구조입니
 │                                                        │
 │  "I love Python"                                       │
 │       ↓ encode()                                       │
-│  [314, 2012, 11361]  ← 토큰 ID 리스트                  │
+│  [40, 1842, 11361]  ← 토큰 ID 리스트                    │
+│  ※ 314는 앞에 공백이 붙은 " I". 문장 첫머리의 "I"는 40    │
 └───────────────────────────────────────────────────────┘
         │
         ▼
@@ -2028,9 +2124,12 @@ Encoder는 **입력 문장 전체를 양방향으로 이해**하는 구조입니
 ┌───────────────────────────────────────────────────────┐
 │  Step 4: Add & Norm (잔차 연결 + LayerNorm)              │
 │                                                        │
-│  출력 = LayerNorm(Attention(x) + x)                    │
+│  출력 = LayerNorm(Attention(x) + x)   ← Post-LN 방식     │
 │                              ↑                         │
 │                          잔차 연결 (원본 더하기)           │
+│                                                        │
+│  ※ 원 Transformer와 BERT는 Post-LN.                     │
+│    GPT-2 코드는 Pre-LN이라 순서가 반대입니다              │
 └───────────────────────────────────────────────────────┘
         │
         ▼
@@ -2083,8 +2182,9 @@ Decoder는 **이전에 생성한 토큰들만 참조하며 다음 토큰을 예�
         │
         ▼
 ┌───────────────────────────────────────────────────────┐
-│  Step 3: Masked Multi-Head Self-Attention (단방향)       │
-│          ← GPT의 핵심! Encoder와 다른 점!                │
+│  Step 3: LayerNorm → Masked Multi-Head Self-Attention   │
+│          (단방향)  ← GPT의 핵심! Encoder와 다른 점!       │
+│          ※ 정규화가 어텐션 '앞'에 옵니다 (Pre-LN)         │
 │                                                        │
 │  Causal Mask (인과적 마스크) 적용:                        │
 │                                                        │
@@ -2103,7 +2203,9 @@ Decoder는 **이전에 생성한 토큰들만 참조하며 다음 토큰을 예�
         │
         ▼
 ┌───────────────────────────────────────────────────────┐
-│  Step 4: Add & Norm                                    │
+│  Step 4: Dropout → Add (잔차 연결)                       │
+│          x = x + shortcut                              │
+│  ※ Pre-LN이므로 'Add & Norm'이 아니라 Add만 합니다        │
 └───────────────────────────────────────────────────────┘
         │
         ▼
@@ -2115,7 +2217,8 @@ Decoder는 **이전에 생성한 토큰들만 참조하며 다음 토큰을 예�
         │
         ▼
 ┌───────────────────────────────────────────────────────┐
-│  Step 6: Add & Norm                                    │
+│  Step 6: Dropout → Add (잔차 연결)                       │
+│          x = x + shortcut                              │
 └───────────────────────────────────────────────────────┘
         │
   (Step 3~6 N번 반복)
@@ -2124,9 +2227,18 @@ Decoder는 **이전에 생성한 토큰들만 참조하며 다음 토큰을 예�
 ┌───────────────────────────────────────────────────────┐
 │  Step 7: Final LayerNorm + Linear (출력 헤드)            │
 │                                                        │
-│  마지막 토큰의 출력 벡터만 사용 ([:, -1, :])               │
-│  Linear(emb_dim → vocab_size)                          │
-│  → vocab_size개 로짓(점수) 생성                          │
+│  Linear(emb_dim → vocab_size) 를 '모든 위치'에 적용        │
+│  → logits shape: [batch, seq_len, vocab_size]          │
+│                                                        │
+│  ※ [:, -1, :] 는 모델 내부가 아니라 생성 루프에서          │
+│    '이후에' 골라내는 단계입니다.                          │
+│    학습 때는 모든 위치의 로짓을 손실 계산에 사용합니다.      │
+└───────────────────────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────────────────┐
+│  Step 7-2: 마지막 위치 로짓만 추출 (생성 시에만)            │
+│  logits[:, -1, :]  → [batch, vocab_size]               │
 └───────────────────────────────────────────────────────┘
         │
         ▼
