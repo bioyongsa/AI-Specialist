@@ -70,6 +70,21 @@ y = enc_sample[1:context_size + 1]  # [t1, t2, t3, t4]
           t0,t1,t2를 보고 t3를 예측  ...
 ```
 
+**이 1-shift는 학습(Training) 전용 개념** — 추론(Inference)에는 존재하지 않음
+
+```
+학습(Training)                              추론(Inference)
+────────────────────                       ────────────────────
+target 존재                                  target 없음 (정답 개념 자체가 없음)
+(실제 코퍼스에서 다음에 온 진짜 토큰)          모델이 예측한 토큰을 그대로 다음 input에 이어붙여 재사용
+input_ids / target_ids 쌍으로 loss 계산       한 번에 한 토큰씩 순차 생성 (autoregressive)
+(cross-entropy: 예측 확률분포 vs target)      비교할 정답이 없으므로 loss 계산도 없음
+```
+
+- x, y처럼 target을 1칸 미리 밀어서 만들어두는 건 **loss를 계산하기 위한 학습용 데이터 구성 트릭**
+- 추론 시에는 target 텐서 자체가 없고, 모델이 매 스텝 낸 확률분포에서 토큰을 하나 골라(greedy/sampling) 문장 뒤에 이어붙인 뒤 그걸 다시 input으로 넣어 다음 토큰을 예측 — 이 과정을 반복
+- 즉 "이전 토큰들을 보고 다음 토큰을 예측"하는 자기회귀적 구조는 학습·추론 모두 동일하지만, **1칸 밀린 target 텐서로 loss를 계산하는 것은 학습에서만** 일어남
+
 ---
 
 ## 3. GPTDatasetV1 — 슬라이딩 윈도우 방식
